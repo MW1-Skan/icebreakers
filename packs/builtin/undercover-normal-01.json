@@ -1,0 +1,33 @@
+{
+  "formatVersion": 1,
+  "id": "undercover-normal-01",
+  "game": "undercover",
+  "name": "Grand public",
+  "mode": "normal",
+  "lang": "fr",
+  "author": "Icebreakers",
+  "entries": [
+    { "a": "Croissant", "b": "Pain au chocolat", "difficulty": 1 },
+    { "a": "Thé", "b": "Café", "difficulty": 1 },
+    { "a": "Cinéma", "b": "Théâtre", "difficulty": 1 },
+    { "a": "Ski", "b": "Snowboard", "difficulty": 1 },
+    { "a": "Chat", "b": "Chien", "difficulty": 1 },
+    { "a": "Métro", "b": "Bus", "difficulty": 1 },
+    { "a": "Plage", "b": "Piscine", "difficulty": 1 },
+    { "a": "WhatsApp", "b": "SMS", "difficulty": 2 },
+    { "a": "Burger", "b": "Kebab", "difficulty": 1 },
+    { "a": "Licorne", "b": "Pégase", "difficulty": 2 },
+    { "a": "Crêpe", "b": "Gaufre", "difficulty": 1 },
+    { "a": "Piano", "b": "Guitare", "difficulty": 1 },
+    { "a": "Football", "b": "Rugby", "difficulty": 1 },
+    { "a": "Vélo", "b": "Trottinette", "difficulty": 1 },
+    { "a": "Ascenseur", "b": "Escalator", "difficulty": 2 },
+    { "a": "Astronaute", "b": "Cosmonaute", "difficulty": 3 },
+    { "a": "Podcast", "b": "Radio", "difficulty": 2 },
+    { "a": "Échecs", "b": "Dames", "difficulty": 2 },
+    { "a": "Zombie", "b": "Vampire", "difficulty": 1 },
+    { "a": "Karaoké", "b": "Concert", "difficulty": 2 },
+    { "a": "Noël", "b": "Nouvel An", "difficulty": 1 },
+    { "a": "Marathon", "b": "Semi-marathon", "difficulty": 2 }
+  ]
+}
