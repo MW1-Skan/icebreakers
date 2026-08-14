@@ -217,6 +217,53 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
 - **Pas de timers** : phases orales, poses pilotées par les joueurs, host en
   arbitre du rythme.
 
+## Spyfall (fiche 5.4 v3 — étape 5)
+
+- **Coup de l'espion en deux temps** : « Je me révèle » (fige le jeu, identité
+  publique, TV « L'espion se révèle ! ») puis le choix dans la grille — avec un
+  timer de 45 s ajouté (absent de la fiche) : s'il expire, le choix est réputé
+  raté (l'équipe gagne) pour ne pas bloquer la partie.
+- **Espion déconnecté** : gel de la manche (timers en pause, bandeau) pendant
+  60 s avant l'annulation « aucune valeur » — la fiche dit directement
+  « > 60 s : annulée », le gel matérialise l'attente.
+- **Unanimité d'accusation** : calculée sur les votants CONNECTÉS hors accusé
+  (fiche) ; un timeout avec des votes manquants vaut non-unanimité (le timer
+  reprend). L'accusation est consommée dès son ouverture, y compris si le vote
+  échoue (fiche) — mais une accusation REFUSÉE par sérialisation (une autre en
+  cours) n'est pas consommée.
+- **Thème choisi par l'animateur** (paramètre évoqué par la fiche) : non
+  implémenté à cette étape — tirage aléatoire uniquement (le changement de
+  thème host viendra avec la page /admin s'il manque vraiment).
+- **Multi-manches (1–3)** : cumul des points au fil des manches, nouvel
+  espion/carte/thème à chaque fois, accusations remises à zéro.
+
+## Taboo (fiche 5.6 — étape 6)
+
+- **Deck injecté à l'init** : toutes les cartes du mode (union dédupliquée),
+  mélangées par le RNG du salon — aucun tirage en cours de partie (pureté du
+  réducteur). L'anti-répétition PAR ÉLÉMENT ne s'applique pas à Taboo (une
+  partie consomme des dizaines de cartes) ; le re-mélange en cours de passage
+  ne reprend que les cartes des passages PRÉCÉDENTS (fiche), y compris au
+  lancement d'un passage si le deck est vide.
+- **Sérialisation buzz ↔ trouvé** : chaque action cite le numéro de la carte
+  courante (`cardSeq`) ; un numéro périmé est refusé avec un message (« le
+  premier événement reçu fait foi », fiche).
+- **Annulation de buzz** : deux variantes host — « annuler » (rend le −1) et
+  « annuler + compter trouvé » (rend le −1 et restitue le +1, cas du trouvé
+  quasi simultané) ; possible tant que le buzz est le dernier événement du
+  passage (live ou récap).
+- **Composition des binômes** : éditeur simple (une équipe par joueur +
+  pré-remplissage par paires) plutôt que le drag & drop de la fiche ; des
+  binômes invalides retombent en composition aléatoire avec avertissement.
+  Trio tournant si effectif impair (fiche).
+- **Passage annulé** (orateur/devineur absent > 30 s) : score ignoré, rejoué en
+  fin de rotation avec de nouvelles cartes — UNE seule fois par passage
+  (anti-boucle si la déconnexion persiste).
+- **Mort subite** : une seule série (nouvelle égalité → victoire partagée,
+  fiche) ; l'orateur y est le membre au plus faible total de « trouvés » en
+  tant qu'orateur ; ses points s'ajoutent au cumul (comparaison équivalente
+  entre ex æquo).
+
 ## Paramétrage et configuration
 
 - **Défauts adaptatifs** : tant que le host ne touche à rien, la répartition des

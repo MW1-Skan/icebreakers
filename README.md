@@ -22,6 +22,12 @@ Jeux disponibles (joueurs actifs, animateur exclu) :
 - **Ito** 🔢 (3–10 j, coop) — nombres secrets 1–100 à écart minimal garanti,
   à poser dans l'ordre croissant en décrivant via le thème. Vies d'équipe,
   défausse automatique sur erreur, verdict par vies restantes.
+- **Spyfall** 🔎 (4–10 j) — thème public + grille des cartes possibles, une
+  carte secrète connue de tous… sauf de l'espion. Interrogatoire oral,
+  accusations à l'unanimité, coup de l'espion, vote final (égalité = espion).
+- **Taboo** ⏱️ (4–10 j, binômes) — faire deviner sans le mot ni les 3 interdits,
+  60 s au chrono, les autres joueurs voient la carte et buzzent les fautes.
+  Binômes composés ou aléatoires (trio si impair), mort subite sur égalité.
 
 ## Démarrage
 
