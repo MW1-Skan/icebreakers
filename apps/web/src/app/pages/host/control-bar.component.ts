@@ -30,9 +30,16 @@ import { SocketService } from '../../core/socket.service';
             <button (click)="control({ type: 'extendTimer', seconds: 30 })">+30 s</button>
           }
 
+          @if (showInvalidateClue()) {
+            <button class="danger" (click)="invalidateClue()">🚫 Invalider l'indice</button>
+          }
+          @if (showChangeTheme()) {
+            <button (click)="changeTheme()">🎲 Changer de thème</button>
+          }
+
           @if ((controls()?.removableIds ?? []).length > 0) {
             <details class="menu">
-              <summary>Retirer de la manche…</summary>
+              <summary>{{ removeMenuLabel() }}</summary>
               <div class="menu-list">
                 @for (id of controls()?.removableIds ?? []; track id) {
                   <button class="danger" (click)="remove(id)">✖ {{ nameOf(id) }}</button>
@@ -131,6 +138,20 @@ export class ControlBarComponent {
       }
       return 'Continuer';
     }
+    if (game.kind === 'wavelength') {
+      if (game.phase === 'reveal' || game.phase === 'aborted') {
+        return game.mancheNumber < game.manchesPlanned ? 'Manche suivante' : 'Voir le classement';
+      }
+      return 'Continuer';
+    }
+    if (game.kind === 'ito') {
+      if (game.phase === 'mancheEnd') {
+        return game.mancheIndex < game.manchesTotal
+          ? `Manche suivante (${game.mancheIndex + 1}/${game.manchesTotal})`
+          : 'Voir le verdict';
+      }
+      return 'Continuer';
+    }
     switch (game.phase) {
       case 'distribute':
         return 'Commencer le tour de parole';
@@ -158,6 +179,30 @@ export class ControlBarComponent {
     return p ? `${p.avatar} ${p.name}` : '???';
   }
 
+  showInvalidateClue(): boolean {
+    const game = this.view().room.game;
+    return game?.kind === 'wavelength' && game.phase === 'place';
+  }
+
+  showChangeTheme(): boolean {
+    const game = this.view().room.game;
+    return game?.kind === 'ito' && game.phase === 'play' && !game.themeLocked;
+  }
+
+  removeMenuLabel(): string {
+    return this.view().room.game?.kind === 'ito' ? 'Libérer la carte de…' : 'Retirer de la manche…';
+  }
+
+  invalidateClue(): void {
+    if (confirm('Invalider cet indice ? Le télépathe devra en saisir un autre (la cible ne change pas).')) {
+      void this.socket.control({ type: 'invalidateClue' });
+    }
+  }
+
+  changeTheme(): void {
+    void this.socket.control({ type: 'changeTheme' });
+  }
+
   next(): void {
     void this.socket.next();
   }
@@ -167,7 +212,11 @@ export class ControlBarComponent {
   }
 
   remove(playerId: string): void {
-    if (confirm(`Retirer ${this.nameOf(playerId)} de la manche ? Son rôle sera révélé.`)) {
+    const isIto = this.view().room.game?.kind === 'ito';
+    const message = isIto
+      ? `Libérer la carte de ${this.nameOf(playerId)} ? Elle sera révélée et défaussée, sans coût de vie.`
+      : `Retirer ${this.nameOf(playerId)} de la manche ? Son rôle sera révélé.`;
+    if (confirm(message)) {
       void this.socket.control({ type: 'removeFromRound', playerId });
     }
   }

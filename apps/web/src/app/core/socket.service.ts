@@ -14,10 +14,12 @@ import type {
   GameEventMessage,
   GameId,
   HostControlPayload,
+  ItoParams,
   JustOneParams,
   RoomCreateAck,
   RoomJoinAck,
   UndercoverParams,
+  WavelengthParams,
   WsError,
 } from '@icebreakers/shared';
 
@@ -86,9 +88,9 @@ export class SocketService {
   }
 
   selectGame(
-    game: Extract<GameId, 'undercover' | 'justone'>,
+    game: Extract<GameId, 'undercover' | 'justone' | 'wavelength' | 'ito'>,
     contentMode: ContentMode,
-    params: Partial<UndercoverParams> | Partial<JustOneParams>,
+    params: Partial<UndercoverParams> | Partial<JustOneParams> | Partial<WavelengthParams> | Partial<ItoParams>,
   ): Promise<ActionAck> {
     return this.emitAck<ActionAck>(EVENTS.hostSelectGame, { game, contentMode, params });
   }

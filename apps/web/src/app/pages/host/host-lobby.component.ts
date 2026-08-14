@@ -4,7 +4,7 @@
  */
 import { Component, computed, effect, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { ClientView, ContentMode, JustOneParams, UndercoverParams } from '@icebreakers/shared';
+import type { ClientView, ContentMode, ItoParams, JustOneParams, UndercoverParams, WavelengthParams } from '@icebreakers/shared';
 import { SocketService } from '../../core/socket.service';
 import { PlayersGridComponent } from '../../components/players-grid.component';
 import { QrCodeComponent } from '../../components/qr-code.component';
@@ -29,6 +29,18 @@ const JO_DEFAULTS: JustOneParams = {
   arbitrateSeconds: 30,
   softPenalty: false,
 };
+
+const WL_DEFAULTS: WavelengthParams = { manchesCount: 5, placeSeconds: 45, zoneWidth: 5 };
+const ITO_DEFAULTS: ItoParams = { manchesCount: 3, livesCount: 3, rangeMax: 100, minGap: 8 };
+
+type SelectableGame = 'undercover' | 'justone' | 'wavelength' | 'ito';
+
+const GAME_TABS: Array<{ id: SelectableGame; label: string; hint: string }> = [
+  { id: 'undercover', label: '🕵️ Undercover', hint: '4–10 j' },
+  { id: 'justone', label: '☝️ Just One', hint: '4–10 j · coop' },
+  { id: 'wavelength', label: '🌊 Wavelength', hint: '3–10 j' },
+  { id: 'ito', label: '🔢 Ito', hint: '3–10 j · coop' },
+];
 
 @Component({
   selector: 'app-host-lobby',
@@ -60,22 +72,16 @@ const JO_DEFAULTS: JustOneParams = {
 
       <section class="card setup" aria-label="Configuration de la partie (animateur)">
         <div class="game-picker" role="tablist" aria-label="Choix du jeu">
-          <button
-            role="tab"
-            [attr.aria-selected]="selectedGame() === 'undercover'"
-            [class.active]="selectedGame() === 'undercover'"
-            (click)="setGame('undercover')"
-          >
-            🕵️ Undercover <span class="muted">4–10 j</span>
-          </button>
-          <button
-            role="tab"
-            [attr.aria-selected]="selectedGame() === 'justone'"
-            [class.active]="selectedGame() === 'justone'"
-            (click)="setGame('justone')"
-          >
-            ☝️ Just One <span class="muted">4–10 j · coop</span>
-          </button>
+          @for (tab of gameTabs; track tab.id) {
+            <button
+              role="tab"
+              [attr.aria-selected]="selectedGame() === tab.id"
+              [class.active]="selectedGame() === tab.id"
+              (click)="setGame(tab.id)"
+            >
+              {{ tab.label }} <span class="muted">{{ tab.hint }}</span>
+            </button>
+          }
         </div>
 
         <div class="row">
@@ -127,6 +133,55 @@ const JO_DEFAULTS: JustOneParams = {
 
             <label for="pv">Votes publics</label>
             <input id="pv" name="pv" type="checkbox" [ngModel]="ucParams().publicVotes" (ngModelChange)="patchUc({ publicVotes: $event })" />
+          } @else if (selectedGame() === 'wavelength') {
+            <label for="wlmanches">Manches</label>
+            <select id="wlmanches" name="wlmanches" [ngModel]="wlParams().manchesCount" (ngModelChange)="patchWl({ manchesCount: +$event })">
+              @for (n of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; track n) {
+                <option [value]="n">{{ n }}</option>
+              }
+            </select>
+
+            <label for="wlplace">Placement</label>
+            <select id="wlplace" name="wlplace" [ngModel]="wlParams().placeSeconds" (ngModelChange)="patchWl({ placeSeconds: +$event })">
+              @for (s of [30, 45, 60, 90]; track s) {
+                <option [value]="s">{{ s }} s</option>
+              }
+            </select>
+
+            <label for="wlzone" title="±w → 4 pts, ±2w → 3 pts, ±3w → 2 pts">Zones ±</label>
+            <select id="wlzone" name="wlzone" [ngModel]="wlParams().zoneWidth" (ngModelChange)="patchWl({ zoneWidth: +$event })">
+              @for (w of [3, 5, 8]; track w) {
+                <option [value]="w">{{ w }}</option>
+              }
+            </select>
+          } @else if (selectedGame() === 'ito') {
+            <label for="itomanches">Manches</label>
+            <select id="itomanches" name="itomanches" [ngModel]="itoParams().manchesCount" (ngModelChange)="patchIto({ manchesCount: +$event })">
+              @for (n of [1, 2, 3, 4, 5]; track n) {
+                <option [value]="n">{{ n }}</option>
+              }
+            </select>
+
+            <label for="itolives">Vies</label>
+            <select id="itolives" name="itolives" [ngModel]="itoParams().livesCount" (ngModelChange)="patchIto({ livesCount: +$event })">
+              @for (n of [1, 2, 3, 4, 5]; track n) {
+                <option [value]="n">{{ n }}</option>
+              }
+            </select>
+
+            <label for="itorange">Plage</label>
+            <select id="itorange" name="itorange" [ngModel]="itoParams().rangeMax" (ngModelChange)="patchIto({ rangeMax: +$event })">
+              @for (r of [50, 100]; track r) {
+                <option [value]="r">1–{{ r }}</option>
+              }
+            </select>
+
+            <label for="itogap" title="Écart minimal garanti entre deux nombres">Écart min</label>
+            <select id="itogap" name="itogap" [ngModel]="itoParams().minGap" (ngModelChange)="patchIto({ minGap: +$event })">
+              @for (gap of [4, 6, 8, 10, 12]; track gap) {
+                <option [value]="gap">{{ gap }}</option>
+              }
+            </select>
           } @else {
             <label for="jomanches">Manches</label>
             <select id="jomanches" name="jomanches" [ngModel]="joParams().manchesCount" (ngModelChange)="patchJo({ manchesCount: +$event })">
@@ -262,6 +317,18 @@ export class HostLobbyComponent {
     return selection?.game === 'justone' ? selection.params : JO_DEFAULTS;
   });
 
+  readonly wlParams = computed<WavelengthParams>(() => {
+    const selection = this.view().room.selection;
+    return selection?.game === 'wavelength' ? selection.params : WL_DEFAULTS;
+  });
+
+  readonly itoParams = computed<ItoParams>(() => {
+    const selection = this.view().room.selection;
+    return selection?.game === 'ito' ? selection.params : ITO_DEFAULTS;
+  });
+
+  readonly gameTabs = GAME_TABS;
+
   constructor() {
     // Auto-sélection du premier jeu à l'arrivée au lobby.
     let autoSelected = false;
@@ -280,7 +347,7 @@ export class HostLobbyComponent {
     return 'Random (mélange)';
   }
 
-  setGame(game: 'undercover' | 'justone'): void {
+  setGame(game: SelectableGame): void {
     if (game === this.selectedGame()) return;
     // Changement de jeu : repartir des défauts (surcharges remises à zéro).
     void this.socket.selectGame(game, this.selectedMode(), {});
@@ -298,8 +365,41 @@ export class HostLobbyComponent {
     void this.socket.selectGame('justone', this.selectedMode(), { ...this.joOverrides(), ...change });
   }
 
-  private currentOverrides(): Partial<UndercoverParams> | Partial<JustOneParams> {
-    return this.selectedGame() === 'undercover' ? this.ucOverrides() : this.joOverrides();
+  patchWl(change: Partial<WavelengthParams>): void {
+    void this.socket.selectGame('wavelength', this.selectedMode(), { ...this.wlOverrides(), ...change });
+  }
+
+  patchIto(change: Partial<ItoParams>): void {
+    void this.socket.selectGame('ito', this.selectedMode(), { ...this.itoOverrides(), ...change });
+  }
+
+  private currentOverrides():
+    | Partial<UndercoverParams>
+    | Partial<JustOneParams>
+    | Partial<WavelengthParams>
+    | Partial<ItoParams> {
+    switch (this.selectedGame()) {
+      case 'undercover':
+        return this.ucOverrides();
+      case 'justone':
+        return this.joOverrides();
+      case 'wavelength':
+        return this.wlOverrides();
+      case 'ito':
+        return this.itoOverrides();
+      default:
+        return {};
+    }
+  }
+
+  private wlOverrides(): Partial<WavelengthParams> {
+    const p = this.wlParams();
+    return { manchesCount: p.manchesCount, placeSeconds: p.placeSeconds, zoneWidth: p.zoneWidth };
+  }
+
+  private itoOverrides(): Partial<ItoParams> {
+    const p = this.itoParams();
+    return { manchesCount: p.manchesCount, livesCount: p.livesCount, rangeMax: p.rangeMax, minGap: p.minGap };
   }
 
   /** Les valeurs affichées deviennent les surcharges explicites du host. */

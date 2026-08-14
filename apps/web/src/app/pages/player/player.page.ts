@@ -6,14 +6,24 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
+import { ItoPlayerComponent } from './ito-player.component';
 import { JustOnePlayerComponent } from './justone-player.component';
 import { UndercoverPlayerComponent } from './undercover-player.component';
+import { WavelengthPlayerComponent } from './wavelength-player.component';
 import { PlayersGridComponent } from '../../components/players-grid.component';
 import { RecapBannerComponent } from '../../components/recap-banner.component';
 
 @Component({
   selector: 'app-player',
-  imports: [RouterLink, JustOnePlayerComponent, UndercoverPlayerComponent, PlayersGridComponent, RecapBannerComponent],
+  imports: [
+    RouterLink,
+    ItoPlayerComponent,
+    JustOnePlayerComponent,
+    UndercoverPlayerComponent,
+    WavelengthPlayerComponent,
+    PlayersGridComponent,
+    RecapBannerComponent,
+  ],
   template: `
     @if (fatalError(); as fatal) {
       <main class="center">
@@ -57,6 +67,12 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
               }
               @case ('justone') {
                 <app-justone-player [view]="v" />
+              }
+              @case ('wavelength') {
+                <app-wavelength-player [view]="v" />
+              }
+              @case ('ito') {
+                <app-ito-player [view]="v" />
               }
             }
           }

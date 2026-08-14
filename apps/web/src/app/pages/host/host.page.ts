@@ -8,12 +8,22 @@ import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
 import { ControlBarComponent } from './control-bar.component';
 import { HostLobbyComponent } from './host-lobby.component';
+import { ItoHostComponent } from './ito-host.component';
 import { JustOneHostComponent } from './justone-host.component';
 import { UndercoverHostComponent } from './undercover-host.component';
+import { WavelengthHostComponent } from './wavelength-host.component';
 
 @Component({
   selector: 'app-host',
-  imports: [RouterLink, ControlBarComponent, HostLobbyComponent, JustOneHostComponent, UndercoverHostComponent],
+  imports: [
+    RouterLink,
+    ControlBarComponent,
+    HostLobbyComponent,
+    ItoHostComponent,
+    JustOneHostComponent,
+    UndercoverHostComponent,
+    WavelengthHostComponent,
+  ],
   template: `
     @if (deniedMessage(); as denied) {
       <main class="denied">
@@ -40,6 +50,12 @@ import { UndercoverHostComponent } from './undercover-host.component';
             }
             @case ('justone') {
               <app-justone-host [view]="v" />
+            }
+            @case ('wavelength') {
+              <app-wavelength-host [view]="v" />
+            }
+            @case ('ito') {
+              <app-ito-host [view]="v" />
             }
             @default {
               <app-host-lobby [view]="v" />
