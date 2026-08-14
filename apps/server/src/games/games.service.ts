@@ -6,9 +6,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type {
   GameEventMessage,
+  ItoAction,
   JustOneAction,
   PlayerId,
   UndercoverAction,
+  WavelengthAction,
   WsError,
 } from '../shared';
 import { AppConfigService } from '../config/app-config.service';
@@ -38,9 +40,29 @@ import {
   startNextJustOneManche,
   validateJustOneSetup,
 } from './justone/justone.engine';
+import {
+  buildWavelengthResult,
+  guardWavelength,
+  initWavelength,
+  reduceWavelength,
+  resolveWavelengthParams,
+  startNextWavelengthTurn,
+  validateWavelengthSetup,
+} from './wavelength/wavelength.engine';
+import {
+  applyThemeChange,
+  buildItoResult,
+  canChangeTheme,
+  guardIto,
+  initIto,
+  reduceIto,
+  resolveItoParams,
+  startNextItoManche,
+  validateItoSetup,
+} from './ito/ito.engine';
 import type { GameEffect } from '../shared';
 
-export type GameAction = UndercoverAction | JustOneAction;
+export type GameAction = UndercoverAction | JustOneAction | WavelengthAction | ItoAction;
 
 @Injectable()
 export class GamesService {
@@ -69,7 +91,74 @@ export class GamesService {
     if (!room.selection) {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Choisis d’abord un jeu.' } };
     }
-    return room.selection.game === 'undercover' ? this.startUndercover(room) : this.startJustOne(room);
+    switch (room.selection.game) {
+      case 'undercover':
+        return this.startUndercover(room);
+      case 'justone':
+        return this.startJustOne(room);
+      case 'wavelength':
+        return this.startWavelength(room);
+      case 'ito':
+        return this.startIto(room);
+    }
+  }
+
+  private startWavelength(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const selection = room.selection!;
+    if (selection.game !== 'wavelength') throw new Error('unreachable');
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateWavelengthSetup(playerIds.length);
+    if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
+    const params = resolveWavelengthParams(playerIds.length, selection.paramOverrides);
+
+    const drawn = this.packs.drawWavelengthEntry(
+      selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = drawn.recycled;
+
+    const { state, effects } = initWavelength(playerIds, drawn.entry, params, this.engineCtx(room));
+    room.game = state;
+    room.status = 'inGame';
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : Wavelength lancé (${playerIds.length} joueurs).`);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  private startIto(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const selection = room.selection!;
+    if (selection.game !== 'ito') throw new Error('unreachable');
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateItoSetup(playerIds.length);
+    if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
+    const params = resolveItoParams(selection.paramOverrides);
+
+    const drawn = this.packs.drawItoEntry(
+      selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = drawn.recycled;
+
+    const { state, effects } = initIto(playerIds, drawn.entry.theme, params, this.engineCtx(room));
+    room.game = state;
+    room.status = 'inGame';
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : Ito lancé (${playerIds.length} joueurs).`);
+    this.applyEffects(room, effects);
+    return { ok: true };
   }
 
   private startUndercover(room: Room): { ok: true } | { ok: false; error: WsError } {
@@ -146,10 +235,127 @@ export class GamesService {
       this.applyEffects(room, effects);
       return { ok: true };
     }
-    const joAction = action as JustOneAction;
-    const guard = guardJustOne(room.game, joAction, ctx);
+    if (room.game.kind === 'justone') {
+      const joAction = action as JustOneAction;
+      const guard = guardJustOne(room.game, joAction, ctx);
+      if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+      const { state, effects } = reduceJustOne(room.game, joAction, ctx);
+      room.game = state;
+      this.rooms.touch(room);
+      this.applyEffects(room, effects);
+      return { ok: true };
+    }
+    if (room.game.kind === 'wavelength') {
+      const wlAction = action as WavelengthAction;
+      const guard = guardWavelength(room.game, wlAction, ctx);
+      if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+      const { state, effects } = reduceWavelength(room.game, wlAction, ctx);
+      room.game = state;
+      this.rooms.touch(room);
+      this.applyEffects(room, effects);
+      return { ok: true };
+    }
+    const itoAction = action as ItoAction;
+    const guard = guardIto(room.game, itoAction, ctx);
     if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
-    const { state, effects } = reduceJustOne(room.game, joAction, ctx);
+    const { state, effects } = reduceIto(room.game, itoAction, ctx);
+    room.game = state;
+    this.rooms.touch(room);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  /** Wavelength — tour suivant (host:next depuis la révélation ou une annulation). */
+  nextWavelengthTurn(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (
+      room.status !== 'inGame' ||
+      !game ||
+      game.kind !== 'wavelength' ||
+      (game.phase !== 'reveal' && game.phase !== 'aborted')
+    ) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucun tour à enchaîner.' } };
+    }
+    if (game.telepathQueue.length === 0) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'La partie est terminée.' } };
+    }
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+    const drawn = this.packs.drawWavelengthEntry(
+      room.selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+    const next = startNextWavelengthTurn(game, drawn.entry, this.engineCtx(room));
+    if (!next) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'La partie est terminée.' } };
+    }
+    room.game = next.state;
+    this.rooms.touch(room);
+    this.applyEffects(room, next.effects);
+    return { ok: true };
+  }
+
+  /** Ito — manche suivante (host:next depuis la fin de manche). */
+  nextItoManche(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (room.status !== 'inGame' || !game || game.kind !== 'ito' || game.phase !== 'mancheEnd') {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune manche à enchaîner.' } };
+    }
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+    const drawn = this.packs.drawItoEntry(
+      room.selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+    const next = startNextItoManche(game, drawn.entry.theme, this.engineCtx(room));
+    if (!next) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'La partie est terminée.' } };
+    }
+    room.game = next.state;
+    this.rooms.touch(room);
+    this.applyEffects(room, next.effects);
+    return { ok: true };
+  }
+
+  /** Ito — « Changer de thème » (host, uniquement avant la première pose). */
+  itoChangeTheme(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (room.status !== 'inGame' || !game || game.kind !== 'ito') {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune partie Ito en cours.' } };
+    }
+    const guard = canChangeTheme(game);
+    if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+    const drawn = this.packs.drawItoEntry(
+      room.selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun autre thème disponible.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+    const { state, effects } = applyThemeChange(game, drawn.entry.theme);
     room.game = state;
     this.rooms.touch(room);
     this.applyEffects(room, effects);
@@ -280,6 +486,14 @@ export class GamesService {
       const result = buildJustOneResult(game, room.players, Date.now());
       result.summary = `Partie écourtée (${game.history.length} manche${game.history.length > 1 ? 's' : ''}) — ${result.summary}`;
       room.sessionRecap.push(result);
+    } else if (game?.kind === 'wavelength' && game.history.some((h) => !h.aborted)) {
+      const result = buildWavelengthResult(game, room.players, Date.now());
+      result.summary = `Partie écourtée — ${result.summary}`;
+      room.sessionRecap.push(result);
+    } else if (game?.kind === 'ito' && game.history.length >= 1) {
+      const result = buildItoResult(game, room.players, Date.now());
+      result.summary = `Partie écourtée (${game.history.length} manche${game.history.length > 1 ? 's' : ''}) — ${result.summary}`;
+      room.sessionRecap.push(result);
     }
     room.game = undefined;
     room.status = 'lobby';
@@ -328,6 +542,10 @@ export class GamesService {
             room.sessionRecap.push(buildUndercoverResult(room.game, room.players, Date.now()));
           } else if (room.game?.kind === 'justone') {
             room.sessionRecap.push(buildJustOneResult(room.game, room.players, Date.now()));
+          } else if (room.game?.kind === 'wavelength') {
+            room.sessionRecap.push(buildWavelengthResult(room.game, room.players, Date.now()));
+          } else if (room.game?.kind === 'ito') {
+            room.sessionRecap.push(buildItoResult(room.game, room.players, Date.now()));
           }
           events.push({ name: 'gameEnded', payload: effect.winner ? { winner: effect.winner } : undefined });
           break;

@@ -26,6 +26,14 @@ import {
   validateJustOneSetup,
 } from '../games/justone/justone.engine';
 import { projectJustOneMe, projectJustOnePublic } from '../games/justone/justone.project';
+import {
+  guardWavelength,
+  resolveWavelengthParams,
+  validateWavelengthSetup,
+} from '../games/wavelength/wavelength.engine';
+import { projectWavelengthMe, projectWavelengthPublic } from '../games/wavelength/wavelength.project';
+import { guardIto, resolveItoParams, validateItoSetup } from '../games/ito/ito.engine';
+import { projectItoMe, projectItoPublic } from '../games/ito/ito.project';
 import type { ProjectionCtx, Room } from './room.types';
 
 function connectedIdsOf(room: Room): PlayerId[] {
@@ -40,8 +48,14 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
     const params = resolveUndercoverParams(playerCount, room.selection.paramOverrides, ctx.timerDefaults);
     const setup = validateUndercoverSetup(playerCount, params);
     if (!setup.ok) blockers.push(setup.message);
-  } else {
+  } else if (room.selection.game === 'justone') {
     const setup = validateJustOneSetup(playerCount);
+    if (!setup.ok) blockers.push(setup.message);
+  } else if (room.selection.game === 'wavelength') {
+    const setup = validateWavelengthSetup(playerCount);
+    if (!setup.ok) blockers.push(setup.message);
+  } else {
+    const setup = validateItoSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
   }
   const { contentMode } = room.selection;
@@ -53,33 +67,55 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
 
 function projectSelection(room: Room, ctx: ProjectionCtx): GameSelectionView | undefined {
   if (!room.selection) return undefined;
-  if (room.selection.game === 'undercover') {
-    return {
-      game: 'undercover',
-      contentMode: room.selection.contentMode,
-      params: resolveUndercoverParams(room.players.length, room.selection.paramOverrides, ctx.timerDefaults),
-    };
+  switch (room.selection.game) {
+    case 'undercover':
+      return {
+        game: 'undercover',
+        contentMode: room.selection.contentMode,
+        params: resolveUndercoverParams(room.players.length, room.selection.paramOverrides, ctx.timerDefaults),
+      };
+    case 'justone':
+      return {
+        game: 'justone',
+        contentMode: room.selection.contentMode,
+        params: resolveJustOneParams(room.selection.paramOverrides),
+      };
+    case 'wavelength':
+      return {
+        game: 'wavelength',
+        contentMode: room.selection.contentMode,
+        params: resolveWavelengthParams(room.players.length, room.selection.paramOverrides),
+      };
+    case 'ito':
+      return {
+        game: 'ito',
+        contentMode: room.selection.contentMode,
+        params: resolveItoParams(room.selection.paramOverrides),
+      };
   }
-  return {
-    game: 'justone',
-    contentMode: room.selection.contentMode,
-    params: resolveJustOneParams(room.selection.paramOverrides),
-  };
 }
 
 function projectGamePublic(room: Room): GamePublicView | undefined {
   if (!room.game) return undefined;
-  if (room.game.kind === 'undercover') return projectUndercoverPublic(room.game);
-  return projectJustOnePublic(room.game, connectedIdsOf(room));
+  switch (room.game.kind) {
+    case 'undercover':
+      return projectUndercoverPublic(room.game);
+    case 'justone':
+      return projectJustOnePublic(room.game, connectedIdsOf(room));
+    case 'wavelength':
+      return projectWavelengthPublic(room.game, connectedIdsOf(room));
+    case 'ito':
+      return projectItoPublic(room.game);
+  }
 }
 
 function projectPublic(room: Room, ctx: ProjectionCtx): RoomPublicView {
   const notices: RoomNotice[] = [];
   if (room.contentRecycled) notices.push({ kind: 'contentRecycled' });
   if (!room.host.connected) notices.push({ kind: 'hostDisconnected' });
-  // Just One : à moins de 3 joueurs actifs, la TV suggère de passer à autre chose.
+  // Just One / Wavelength : à moins de 3 joueurs actifs, bandeau TV (fiches 5.2/5.3).
   if (
-    room.game?.kind === 'justone' &&
+    (room.game?.kind === 'justone' || room.game?.kind === 'wavelength') &&
     room.status === 'inGame' &&
     room.game.playerIds.filter((id) => connectedIdsOf(room).includes(id)).length < 3
   ) {
@@ -111,17 +147,31 @@ function projectPublic(room: Room, ctx: ProjectionCtx): RoomPublicView {
 
 function projectHostControls(room: Room, ctx: ProjectionCtx): HostControlsView {
   const inGame = room.status === 'inGame' && !!room.game;
+  const engineCtx = { rng: () => 0, connectedIds: connectedIdsOf(room) };
   let canNext = false;
   if (inGame && room.game) {
-    if (room.game.kind === 'undercover') {
-      // Fin de manche non finale : « Manche suivante » (géré hors réducteur).
-      canNext = room.game.phase === 'end' || guardUndercover(room.game, { type: 'HOST_NEXT' }).ok;
-    } else {
-      canNext = guardJustOne(room.game, { type: 'HOST_NEXT' }, { rng: () => 0, connectedIds: connectedIdsOf(room) }).ok;
+    switch (room.game.kind) {
+      case 'undercover':
+        // Fin de manche non finale : « Manche suivante » (géré hors réducteur).
+        canNext = room.game.phase === 'end' || guardUndercover(room.game, { type: 'HOST_NEXT' }).ok;
+        break;
+      case 'justone':
+        canNext = guardJustOne(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
+      case 'wavelength':
+        canNext = guardWavelength(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
+      case 'ito':
+        canNext = guardIto(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
     }
   } else if (room.status === 'recap') {
     canNext = true; // retour au lobby
   }
+  // Joueurs « retirables » : Undercover = retrait de la manche ; Ito = libérer la carte.
+  let removableIds: PlayerId[] = [];
+  if (inGame && room.game?.kind === 'undercover') removableIds = [...room.game.alive];
+  if (inGame && room.game?.kind === 'ito' && room.game.phase === 'play') removableIds = [...room.game.holders];
   const activeTimer = ctx.timers[0];
   return {
     canStart: room.status === 'lobby' && computeStartBlockers(room, ctx).length === 0,
@@ -129,17 +179,23 @@ function projectHostControls(room: Room, ctx: ProjectionCtx): HostControlsView {
     canNext,
     canAbort: inGame,
     activeTimer: activeTimer ? { id: activeTimer.id, paused: activeTimer.paused } : undefined,
-    removableIds: inGame && room.game?.kind === 'undercover' ? [...room.game.alive] : [],
+    removableIds,
     kickableIds: room.status === 'lobby' ? room.players.map((p) => p.id) : [],
   };
 }
 
 function projectMeGame(room: Room, playerId: PlayerId): GameMeView | undefined {
   if (!room.game) return undefined;
-  if (room.game.kind === 'undercover') {
-    return { undercover: projectUndercoverMe(room.game, playerId) };
+  switch (room.game.kind) {
+    case 'undercover':
+      return { undercover: projectUndercoverMe(room.game, playerId) };
+    case 'justone':
+      return { justone: projectJustOneMe(room.game, playerId, connectedIdsOf(room)) };
+    case 'wavelength':
+      return { wavelength: projectWavelengthMe(room.game, playerId) };
+    case 'ito':
+      return { ito: projectItoMe(room.game, playerId) };
   }
-  return { justone: projectJustOneMe(room.game, playerId, connectedIdsOf(room)) };
 }
 
 export function projectFor(room: Room, viewer: Viewer, ctx: ProjectionCtx): ClientView {

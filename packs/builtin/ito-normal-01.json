@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "ito-normal-01",
+  "game": "ito",
+  "name": "Grand public",
+  "mode": "normal",
+  "lang": "fr",
+  "author": "Icebreakers",
+  "entries": [
+    { "theme": "Aliments délicieux" },
+    { "theme": "Superpouvoirs utiles" },
+    { "theme": "Choses effrayantes" },
+    { "theme": "Inventions importantes" },
+    { "theme": "Animaux mignons" },
+    { "theme": "Destinations de rêve" },
+    { "theme": "Métiers fatigants" },
+    { "theme": "Films cultes" },
+    { "theme": "Choses chères" },
+    { "theme": "Talents impressionnants" },
+    { "theme": "Chansons entêtantes" },
+    { "theme": "Objets indispensables en voyage" },
+    { "theme": "Sports spectaculaires" },
+    { "theme": "Plats de fête" },
+    { "theme": "Personnages de fiction puissants" },
+    { "theme": "Excuses crédibles pour un retard" }
+  ]
+}

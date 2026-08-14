@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "wavelength-normal-01",
+  "game": "wavelength",
+  "name": "Grand public",
+  "mode": "normal",
+  "lang": "fr",
+  "author": "Icebreakers",
+  "entries": [
+    { "left": "Chaud", "right": "Froid" },
+    { "left": "Sous-coté", "right": "Surcoté" },
+    { "left": "Aliment de semaine", "right": "Aliment de fête" },
+    { "left": "Talent inutile", "right": "Talent qui sauve une vie" },
+    { "left": "Film à voir seul", "right": "Film à voir en famille" },
+    { "left": "Mal élevé", "right": "Poli" },
+    { "left": "Objet fragile", "right": "Objet indestructible" },
+    { "left": "Peur irrationnelle", "right": "Peur légitime" },
+    { "left": "Chanson de douche", "right": "Chanson de concert" },
+    { "left": "Cadeau nul", "right": "Cadeau parfait" },
+    { "left": "Doux", "right": "Piquant" },
+    { "left": "Silencieux", "right": "Assourdissant" },
+    { "left": "Sport tranquille", "right": "Sport extrême" },
+    { "left": "Démodé", "right": "Futuriste" },
+    { "left": "Invité discret", "right": "Invité envahissant" },
+    { "left": "Métier de rêve", "right": "Métier cauchemar" }
+  ]
+}

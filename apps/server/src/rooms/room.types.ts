@@ -5,6 +5,8 @@
 import type {
   ContentMode,
   GameResult,
+  ItoParams,
+  ItoState,
   JustOneParams,
   JustOneState,
   Player,
@@ -14,14 +16,18 @@ import type {
   TimerView,
   UndercoverParams,
   UndercoverState,
+  WavelengthParams,
+  WavelengthState,
 } from '../shared';
 
-export type GameState = UndercoverState | JustOneState;
+export type GameState = UndercoverState | JustOneState | WavelengthState | ItoState;
 
 /** Surcharges explicites du host ; les défauts sont résolus au lancement. */
 export type GameSelection =
   | { game: 'undercover'; contentMode: ContentMode; paramOverrides: Partial<UndercoverParams> }
-  | { game: 'justone'; contentMode: ContentMode; paramOverrides: Partial<JustOneParams> };
+  | { game: 'justone'; contentMode: ContentMode; paramOverrides: Partial<JustOneParams> }
+  | { game: 'wavelength'; contentMode: ContentMode; paramOverrides: Partial<WavelengthParams> }
+  | { game: 'ito'; contentMode: ContentMode; paramOverrides: Partial<ItoParams> };
 
 export interface Room {
   code: string; // "KZTR"

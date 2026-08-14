@@ -28,12 +28,14 @@ import type {
   ActionAck,
   GameActionPayload,
   GameEventMessage,
+  ItoAction,
   JustOneAction,
   MirrorJoinAck,
   RoomCreateAck,
   RoomJoinAck,
   UndercoverAction,
   Viewer,
+  WavelengthAction,
   WsError,
 } from '../shared';
 import { AppConfigService } from '../config/app-config.service';
@@ -105,6 +107,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           !['resolve', 'end'].includes(room.game.phase)
         ) {
           this.games.dispatch(room, { type: 'GUESSER_DISCONNECTED' });
+        }
+        // Wavelength : télépathe déconnecté avant l'indice → manche annulée (fiche 5.2).
+        if (
+          room.status === 'inGame' &&
+          room.game?.kind === 'wavelength' &&
+          room.game.currentTelepathId === viewer.playerId &&
+          room.game.phase === 'clue'
+        ) {
+          this.games.dispatch(room, { type: 'TELEPATH_LEFT' });
         }
       }
     } else if (viewer.kind === 'mirror') {
@@ -247,6 +258,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     ) {
       return this.games.nextJustOneManche(room);
     }
+    if (
+      room.game?.kind === 'wavelength' &&
+      (room.game.phase === 'reveal' || room.game.phase === 'aborted') &&
+      room.game.telepathQueue.length > 0
+    ) {
+      return this.games.nextWavelengthTurn(room);
+    }
+    if (
+      room.game?.kind === 'ito' &&
+      room.game.phase === 'mancheEnd' &&
+      room.game.mancheIndex < room.game.params.manchesCount
+    ) {
+      return this.games.nextItoManche(room);
+    }
     return this.games.dispatch(room, { type: 'HOST_NEXT' });
   }
 
@@ -277,7 +302,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return { ok: true };
       }
       case 'removeFromRound':
+        // Undercover : retrait de la manche ; Ito : « libérer » la carte (fiche 5.5).
+        if (room.game?.kind === 'ito') {
+          return this.games.dispatch(room, { type: 'HOST_RELEASE_CARD', playerId: control.playerId });
+        }
         return this.games.dispatch(room, { type: 'HOST_REMOVE_PLAYER', playerId: control.playerId });
+      case 'invalidateClue':
+        if (room.game?.kind !== 'wavelength') {
+          return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucun indice à invalider.' } };
+        }
+        return this.games.dispatch(room, { type: 'HOST_INVALIDATE_CLUE' });
+      case 'changeTheme':
+        return this.games.itoChangeTheme(room);
       case 'kick': {
         const kicked = this.rooms.kickPlayer(room, control.playerId);
         if (!kicked.ok) return kicked;
@@ -326,7 +362,28 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (!action) return this.wrongGame();
       return this.games.dispatch(room, action);
     }
+    if (room.game?.kind === 'wavelength') {
+      const action = this.mapWavelengthAction(parsed.data, playerId);
+      if (!action) return this.wrongGame();
+      return this.games.dispatch(room, action);
+    }
+    if (room.game?.kind === 'ito') {
+      if (parsed.data.type !== 'playCard') return this.wrongGame();
+      const action: ItoAction = { type: 'PLAY_CARD', playerId };
+      return this.games.dispatch(room, action);
+    }
     return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune partie en cours.' } };
+  }
+
+  private mapWavelengthAction(payload: GameActionPayload, playerId: string): WavelengthAction | undefined {
+    switch (payload.type) {
+      case 'clue':
+        return { type: 'SUBMIT_CLUE', playerId, clue: payload.text };
+      case 'placeSlider':
+        return { type: 'PLACE', playerId, value: payload.value };
+      default:
+        return undefined;
+    }
   }
 
   private mapUndercoverAction(payload: GameActionPayload, playerId: string): UndercoverAction | undefined {

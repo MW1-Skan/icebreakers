@@ -8,7 +8,17 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { entryElementId, validatePack } from '../shared';
-import type { ContentMode, GameId, JustOnePackEntry, Pack, PackMode, Rng, UndercoverPackEntry } from '../shared';
+import type {
+  ContentMode,
+  GameId,
+  ItoPackEntry,
+  JustOnePackEntry,
+  Pack,
+  PackMode,
+  Rng,
+  UndercoverPackEntry,
+  WavelengthPackEntry,
+} from '../shared';
 import { AppConfigService } from '../config/app-config.service';
 import { NoopTeamHistoryStore } from './team-history';
 
@@ -128,6 +138,26 @@ export class PacksService implements OnModuleInit {
     teamName?: string,
   ): DrawnElement<JustOnePackEntry> | { error: 'NO_CONTENT' } {
     return this.drawEntry<JustOnePackEntry>('justone', contentMode, usedEntryIds, rng, randomWeight, teamName);
+  }
+
+  drawWavelengthEntry(
+    contentMode: ContentMode,
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    randomWeight: number,
+    teamName?: string,
+  ): DrawnElement<WavelengthPackEntry> | { error: 'NO_CONTENT' } {
+    return this.drawEntry<WavelengthPackEntry>('wavelength', contentMode, usedEntryIds, rng, randomWeight, teamName);
+  }
+
+  drawItoEntry(
+    contentMode: ContentMode,
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    randomWeight: number,
+    teamName?: string,
+  ): DrawnElement<ItoPackEntry> | { error: 'NO_CONTENT' } {
+    return this.drawEntry<ItoPackEntry>('ito', contentMode, usedEntryIds, rng, randomWeight, teamName);
   }
 
   /**
