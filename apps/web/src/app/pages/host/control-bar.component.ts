@@ -1,0 +1,173 @@
+/**
+ * Barre de contrôle de l'animateur (PRD §2) : repliable, discrète, projetée
+ * avec l'écran — ses libellés ne portent JAMAIS de secret. Avancer les phases,
+ * pause/+30 s, retirer un joueur, kick (lobby), abandonner la manche.
+ */
+import { Component, computed, inject, input, signal } from '@angular/core';
+import type { ClientView } from '@icebreakers/shared';
+import { SocketService } from '../../core/socket.service';
+
+@Component({
+  selector: 'app-control-bar',
+  template: `
+    <div class="bar" [class.collapsed]="collapsed()">
+      <button class="toggle" (click)="collapsed.set(!collapsed())" [attr.aria-expanded]="!collapsed()">
+        {{ collapsed() ? '🎛 Contrôles' : '▾ Replier' }}
+      </button>
+
+      @if (!collapsed()) {
+        <div class="controls">
+          @if (controls()?.canNext) {
+            <button class="primary" (click)="next()">{{ nextLabel() }}</button>
+          }
+
+          @if (controls()?.activeTimer; as timer) {
+            @if (timer.paused) {
+              <button (click)="control({ type: 'resumeTimer' })">▶ Reprendre</button>
+            } @else {
+              <button (click)="control({ type: 'pauseTimer' })">⏸ Pause</button>
+            }
+            <button (click)="control({ type: 'extendTimer', seconds: 30 })">+30 s</button>
+          }
+
+          @if ((controls()?.removableIds ?? []).length > 0) {
+            <details class="menu">
+              <summary>Retirer de la manche…</summary>
+              <div class="menu-list">
+                @for (id of controls()?.removableIds ?? []; track id) {
+                  <button class="danger" (click)="remove(id)">✖ {{ nameOf(id) }}</button>
+                }
+              </div>
+            </details>
+          }
+
+          @if ((controls()?.kickableIds ?? []).length > 0) {
+            <details class="menu">
+              <summary>Kicker…</summary>
+              <div class="menu-list">
+                @for (id of controls()?.kickableIds ?? []; track id) {
+                  <button class="danger" (click)="kick(id)">🚪 {{ nameOf(id) }}</button>
+                }
+              </div>
+            </details>
+          }
+
+          @if (controls()?.canAbort) {
+            <button class="danger" (click)="abort()">Abandonner la manche</button>
+          }
+        </div>
+      }
+    </div>
+  `,
+  styles: [
+    `
+      .bar {
+        position: sticky;
+        bottom: 0;
+        background: color-mix(in srgb, var(--bg-sunken) 92%, transparent);
+        border-top: 1px solid var(--border);
+        padding: 0.5rem 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        backdrop-filter: blur(6px);
+      }
+      .toggle {
+        font-size: 0.9rem;
+        color: var(--fg-muted);
+      }
+      .controls {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .menu {
+        position: relative;
+      }
+      .menu summary {
+        cursor: pointer;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.45em 1em;
+        list-style: none;
+        background: var(--bg-raised);
+      }
+      .menu-list {
+        position: absolute;
+        bottom: 110%;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        background: var(--bg-raised);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.5rem;
+        min-width: 220px;
+        z-index: 10;
+      }
+    `,
+  ],
+})
+export class ControlBarComponent {
+  private readonly socket = inject(SocketService);
+  readonly view = input.required<ClientView>();
+  readonly collapsed = signal(false);
+
+  readonly controls = computed(() => this.view().hostControls);
+
+  readonly nextLabel = computed(() => {
+    const room = this.view().room;
+    if (room.status === 'recap') return 'Retour au lobby';
+    const game = room.game;
+    if (!game) return 'Continuer';
+    switch (game.phase) {
+      case 'distribute':
+        return 'Commencer le tour de parole';
+      case 'describe': {
+        const isLast = game.currentSpeakerId === game.speakingOrder[game.speakingOrder.length - 1];
+        return isLast ? 'Passer à la discussion' : 'Joueur suivant';
+      }
+      case 'discuss':
+        return 'Passer au vote';
+      case 'reveal':
+      case 'whiteGuess':
+        return 'Continuer';
+      default:
+        return 'Continuer';
+    }
+  });
+
+  nameOf(id: string): string {
+    const p = this.view().room.players.find((x) => x.id === id);
+    return p ? `${p.avatar} ${p.name}` : '???';
+  }
+
+  next(): void {
+    void this.socket.next();
+  }
+
+  control(payload: Parameters<SocketService['control']>[0]): void {
+    void this.socket.control(payload);
+  }
+
+  remove(playerId: string): void {
+    if (confirm(`Retirer ${this.nameOf(playerId)} de la manche ? Son rôle sera révélé.`)) {
+      void this.socket.control({ type: 'removeFromRound', playerId });
+    }
+  }
+
+  kick(playerId: string): void {
+    if (confirm(`Kicker ${this.nameOf(playerId)} du salon ?`)) {
+      void this.socket.control({ type: 'kick', playerId });
+    }
+  }
+
+  abort(): void {
+    if (confirm('Abandonner la manche en cours ? (retour au lobby, sans vainqueur)')) {
+      void this.socket.control({ type: 'abortRound' });
+    }
+  }
+}
