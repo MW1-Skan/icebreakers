@@ -1,1 +1,19 @@
-*.md
+# Contenu et configuration locale — jamais dans le repo (PRD §4.5)
+data/
+config.json
+PRD*.md
+
+# Dépendances et builds
+node_modules/
+dist/
+.angular/
+coverage/
+
+# e2e
+playwright-report/
+test-results/
+
+# Divers
+.DS_Store
+*.log
+.env
