@@ -26,7 +26,9 @@ import {
 } from '../shared';
 import type {
   ActionAck,
+  GameActionPayload,
   GameEventMessage,
+  JustOneAction,
   MirrorJoinAck,
   RoomCreateAck,
   RoomJoinAck,
@@ -94,6 +96,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } else if (viewer.kind === 'player') {
       if (!this.hasViewer(code, (v) => v.kind === 'player' && v.playerId === viewer.playerId)) {
         this.rooms.markPlayerDisconnected(room, viewer.playerId);
+        // Just One : devineur déconnecté → gel de la manche (fiche 5.3).
+        if (
+          room.status === 'inGame' &&
+          room.game?.kind === 'justone' &&
+          room.game.guesserId === viewer.playerId &&
+          !room.game.guesserFrozen &&
+          !['resolve', 'end'].includes(room.game.phase)
+        ) {
+          this.games.dispatch(room, { type: 'GUESSER_DISCONNECTED' });
+        }
       }
     } else if (viewer.kind === 'mirror') {
       room.mirrorConnected = this.hasViewer(code, (v) => v.kind === 'mirror');
@@ -138,6 +150,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return { ok: true, code: room.code, playerId: 'host', token };
       }
       this.attach(socket, room.code, { kind: 'player', playerId: found.player.id });
+      // Just One : le devineur revient → dégel de la manche.
+      if (
+        room.status === 'inGame' &&
+        room.game?.kind === 'justone' &&
+        room.game.guesserId === found.player.id &&
+        room.game.guesserFrozen
+      ) {
+        this.games.dispatch(room, { type: 'GUESSER_RECONNECTED' });
+      }
       this.broadcastRoom(room);
       return { ok: true, code: room.code, playerId: found.player.id, token };
     }
@@ -179,11 +200,19 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ctx.room.status === 'inGame') {
       return { ok: false, error: { code: 'ALREADY_IN_GAME', message: 'Termine la partie en cours d’abord.' } };
     }
-    ctx.room.selection = {
-      game: parsed.data.game,
-      contentMode: parsed.data.contentMode,
-      paramOverrides: parsed.data.params,
-    };
+    if (parsed.data.game === 'undercover') {
+      ctx.room.selection = {
+        game: 'undercover',
+        contentMode: parsed.data.contentMode,
+        paramOverrides: parsed.data.params,
+      };
+    } else {
+      ctx.room.selection = {
+        game: 'justone',
+        contentMode: parsed.data.contentMode,
+        paramOverrides: parsed.data.params,
+      };
+    }
     this.rooms.touch(ctx.room);
     this.broadcastRoom(ctx.room);
     return { ok: true };
@@ -202,16 +231,23 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   onHostNext(@ConnectedSocket() socket: Socket): ActionAck {
     const ctx = this.requireHost(socket);
     if ('error' in ctx) return { ok: false, error: ctx.error };
-    if (ctx.room.status === 'recap') {
-      this.games.backToLobby(ctx.room);
+    const { room } = ctx;
+    if (room.status === 'recap') {
+      this.games.backToLobby(room);
       return { ok: true };
     }
-    // Écran de fin d'une manche non finale : le serveur enchaîne la suivante
-    // (nouveau tirage — hors réducteur).
-    if (ctx.room.game?.phase === 'end') {
-      return this.games.nextManche(ctx.room);
+    // Fin de manche non finale : le serveur enchaîne la suivante (tirage hors réducteur).
+    if (room.game?.kind === 'undercover' && room.game.phase === 'end') {
+      return this.games.nextManche(room);
     }
-    return this.games.dispatch(ctx.room, { type: 'HOST_NEXT' });
+    if (
+      room.game?.kind === 'justone' &&
+      room.game.phase === 'resolve' &&
+      room.game.mancheIndex < room.game.params.manchesCount
+    ) {
+      return this.games.nextJustOneManche(room);
+    }
+    return this.games.dispatch(room, { type: 'HOST_NEXT' });
   }
 
   // ─── host:control ─────────────────────────────────────────────────────────
@@ -276,19 +312,61 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!parsed.success) return this.badPayload();
 
     const playerId = data.viewer.playerId;
-    let action: UndercoverAction;
-    switch (parsed.data.type) {
-      case 'seenWord':
-        action = { type: 'SEEN_WORD', playerId };
-        break;
-      case 'vote':
-        action = { type: 'CAST_VOTE', playerId, target: parsed.data.target };
-        break;
-      case 'guess':
-        action = { type: 'SUBMIT_GUESS', playerId, guess: parsed.data.guess };
-        break;
+    if (room.game?.kind === 'undercover') {
+      const action = this.mapUndercoverAction(parsed.data, playerId);
+      if (!action) return this.wrongGame();
+      return this.games.dispatch(room, action);
     }
-    return this.games.dispatch(room, action);
+    if (room.game?.kind === 'justone') {
+      // « Mot injouable » : redraw côté serveur (I/O), hors réducteur.
+      if (parsed.data.type === 'arbitrate' && parsed.data.decision === 'unplayable') {
+        return this.games.justOneRedraw(room, playerId);
+      }
+      const action = this.mapJustOneAction(parsed.data, playerId);
+      if (!action) return this.wrongGame();
+      return this.games.dispatch(room, action);
+    }
+    return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune partie en cours.' } };
+  }
+
+  private mapUndercoverAction(payload: GameActionPayload, playerId: string): UndercoverAction | undefined {
+    switch (payload.type) {
+      case 'seenWord':
+        return { type: 'SEEN_WORD', playerId };
+      case 'vote':
+        return { type: 'CAST_VOTE', playerId, target: payload.target };
+      case 'guess':
+        return { type: 'SUBMIT_GUESS', playerId, guess: payload.guess };
+      default:
+        return undefined;
+    }
+  }
+
+  private mapJustOneAction(payload: GameActionPayload, playerId: string): JustOneAction | undefined {
+    switch (payload.type) {
+      case 'clue':
+        return { type: 'SUBMIT_CLUE', playerId, text: payload.text };
+      case 'flagClue':
+        return { type: 'FLAG_CLUE', playerId, giverId: payload.giverId, cancelled: payload.cancelled };
+      case 'ready':
+        return { type: 'READY', playerId };
+      case 'guess':
+        return { type: 'SUBMIT_GUESS', playerId, guess: payload.guess };
+      case 'pass':
+        return { type: 'PASS', playerId };
+      case 'arbitrate':
+        if (payload.decision === 'forceClose') return { type: 'FORCE_CLOSE', playerId };
+        if (payload.decision === 'accept' || payload.decision === 'reject') {
+          return { type: 'ARBITRATE', playerId, decision: payload.decision };
+        }
+        return undefined;
+      default:
+        return undefined;
+    }
+  }
+
+  private wrongGame(): { ok: false; error: WsError } {
+    return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Action invalide pour le jeu en cours.' } };
   }
 
   // ─── Diffusion des projections ────────────────────────────────────────────

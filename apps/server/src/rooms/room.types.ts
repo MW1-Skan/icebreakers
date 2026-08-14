@@ -5,6 +5,8 @@
 import type {
   ContentMode,
   GameResult,
+  JustOneParams,
+  JustOneState,
   Player,
   PlayerId,
   Rng,
@@ -14,14 +16,12 @@ import type {
   UndercoverState,
 } from '../shared';
 
-export type GameState = UndercoverState; // union à étendre avec les jeux suivants
+export type GameState = UndercoverState | JustOneState;
 
-export interface GameSelection {
-  game: 'undercover';
-  contentMode: ContentMode;
-  /** Surcharges explicites du host ; les défauts sont résolus au lancement. */
-  paramOverrides: Partial<UndercoverParams>;
-}
+/** Surcharges explicites du host ; les défauts sont résolus au lancement. */
+export type GameSelection =
+  | { game: 'undercover'; contentMode: ContentMode; paramOverrides: Partial<UndercoverParams> }
+  | { game: 'justone'; contentMode: ContentMode; paramOverrides: Partial<JustOneParams> };
 
 export interface Room {
   code: string; // "KZTR"

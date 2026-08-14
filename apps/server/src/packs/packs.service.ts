@@ -8,7 +8,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { entryElementId, validatePack } from '../shared';
-import type { ContentMode, GameId, Pack, PackMode, Rng, UndercoverPackEntry } from '../shared';
+import type { ContentMode, GameId, JustOnePackEntry, Pack, PackMode, Rng, UndercoverPackEntry } from '../shared';
 import { AppConfigService } from '../config/app-config.service';
 import { NoopTeamHistoryStore } from './team-history';
 
@@ -110,10 +110,6 @@ export class PacksService implements OnModuleInit {
     return modes;
   }
 
-  /**
-   * Tire une paire Undercover en respectant le mode de contenu (§3.5) et
-   * l'anti-répétition intra-salon. Pool épuisé → re-mélange signalé.
-   */
   drawUndercoverEntry(
     contentMode: ContentMode,
     usedEntryIds: Set<string>,
@@ -121,7 +117,32 @@ export class PacksService implements OnModuleInit {
     randomWeight: number,
     teamName?: string,
   ): DrawnElement<UndercoverPackEntry> | { error: 'NO_CONTENT' } {
-    const byMode = (mode: PackMode) => this.indexElements('undercover', mode);
+    return this.drawEntry<UndercoverPackEntry>('undercover', contentMode, usedEntryIds, rng, randomWeight, teamName);
+  }
+
+  drawJustOneEntry(
+    contentMode: ContentMode,
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    randomWeight: number,
+    teamName?: string,
+  ): DrawnElement<JustOnePackEntry> | { error: 'NO_CONTENT' } {
+    return this.drawEntry<JustOnePackEntry>('justone', contentMode, usedEntryIds, rng, randomWeight, teamName);
+  }
+
+  /**
+   * Tire un élément de contenu en respectant le mode (§3.5) et l'anti-répétition
+   * intra-salon. Pool épuisé → re-mélange signalé (« contenu recyclé »).
+   */
+  private drawEntry<E>(
+    game: GameId,
+    contentMode: ContentMode,
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    randomWeight: number,
+    teamName?: string,
+  ): DrawnElement<E> | { error: 'NO_CONTENT' } {
+    const byMode = (mode: PackMode) => this.indexElements(game, mode);
     let pool: IndexedElement[];
     if (contentMode === 'random') {
       const interne = byMode('interne');
@@ -160,7 +181,7 @@ export class PacksService implements OnModuleInit {
     usedEntryIds.add(chosen.elementId);
     if (teamName) this.teamHistory.markPlayed(teamName, [chosen.elementId]);
     const pack = this.packs.get(chosen.packId)!;
-    const entry = pack.entries[chosen.index] as UndercoverPackEntry;
+    const entry = pack.entries[chosen.index] as E;
     return { elementId: chosen.elementId, entry, recycled };
   }
 

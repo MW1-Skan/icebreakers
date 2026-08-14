@@ -29,7 +29,8 @@ export interface PlayerPublicView {
 
 export type RoomNotice =
   | { kind: 'contentRecycled' } // pack épuisé → re-mélange (bandeau host)
-  | { kind: 'hostDisconnected' }; // pause auto (§3.4)
+  | { kind: 'hostDisconnected' } // pause auto (§3.4)
+  | { kind: 'fewActivePlayers' }; // effectif connecté trop réduit (ex. Just One < 3)
 
 export type GamePublicView = UndercoverPublicView | JustOnePublicView;
 export type GameMeView = { undercover?: UndercoverMeView; justone?: JustOneMeView };
