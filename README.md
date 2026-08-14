@@ -30,17 +30,29 @@ npm run dev
 En build de prod (`npm run build`), le serveur NestJS sert aussi le front :
 tout tourne sur http://localhost:3000.
 
-## Tester à 5 onglets en local
+## Tester à 5 écrans en local
 
-1. `npm run dev`, puis ouvre http://localhost:4200 → **« Créer un salon »**.
-   Cet onglet est l'écran animateur (celui qu'on projetterait sur la TV).
-2. Ouvre 4 onglets (ou fenêtres privées) sur l'URL affichée sous le QR
-   (`http://localhost:4200/join/CODE`) : prénom + avatar → chaque onglet est un joueur.
-3. Sur l'écran animateur : **« Lancer la partie »** (bouton actif dès 4 joueurs).
-4. Chaque joueur touche **« Voir mon mot »** ; l'animateur déroule le tour de
+1. `npm run dev` — le premier démarrage compile les deux apps : compte
+   20–40 s avant que http://localhost:4200 réponde (le terminal affiche
+   « Application bundle generation complete » et « Nest application
+   successfully started » quand c'est prêt).
+2. Ouvre http://localhost:4200 → **« Créer un salon »**. Cet onglet est
+   l'écran animateur (celui qu'on projetterait sur la TV).
+3. Ouvre 4 **contextes de navigation séparés** sur l'URL affichée sous le QR
+   (`http://localhost:4200/join/CODE`) : prénom + avatar → chacun est un joueur.
+
+   ⚠️ Le jeton de session vit dans le localStorage, partagé entre les onglets
+   d'un même profil : **deux onglets ordinaires du même navigateur seraient le
+   même joueur** (le second se reconnecte à la place du premier). Pour simuler
+   4 joueurs sur une seule machine, mélange : fenêtre privée, autre navigateur
+   (Firefox/Chrome/Safari), autres profils Chrome. L'animateur peut cohabiter
+   avec UN joueur dans le même profil (jetons distincts). En conditions
+   réelles, la question ne se pose pas : un joueur = son propre PC.
+4. Sur l'écran animateur : **« Lancer la partie »** (bouton actif dès 4 joueurs).
+5. Chaque joueur touche **« Voir mon mot »** ; l'animateur déroule le tour de
    parole (« Joueur suivant »), la discussion, puis le vote se fait sur les
    écrans joueurs. Révélations et fin de partie s'affichent partout.
-5. Rafraîchis n'importe quel onglet en cours de partie : le jeton en
+6. Rafraîchis n'importe quel onglet en cours de partie : le jeton en
    localStorage reconnecte le joueur (ou l'animateur) à sa place.
 
 Paramètres utiles au lancement : **Manches** (1 à 5 manches enchaînées, avec
