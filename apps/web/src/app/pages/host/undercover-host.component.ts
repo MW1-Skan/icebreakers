@@ -12,7 +12,7 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
 import { TimerBadgeComponent } from '../../components/timer-badge.component';
 
 @Component({
-  selector: 'app-host-game',
+  selector: 'app-undercover-host',
   imports: [EndRevealComponent, PlayersGridComponent, RecapBannerComponent, TimerBadgeComponent],
   template: `
     @if (game(); as g) {
@@ -317,11 +317,14 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
     `,
   ],
 })
-export class HostGameComponent {
+export class UndercoverHostComponent {
   readonly view = input.required<ClientView>();
   protected readonly roleLabel = roleLabel;
 
-  readonly game = computed<UndercoverPublicView | undefined>(() => this.view().room.game);
+  readonly game = computed<UndercoverPublicView | undefined>(() => {
+    const g = this.view().room.game;
+    return g?.kind === 'undercover' ? g : undefined;
+  });
 
   readonly phaseTitle = computed(() => {
     switch (this.game()?.phase) {

@@ -7,12 +7,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
 import { ControlBarComponent } from './control-bar.component';
-import { HostGameComponent } from './host-game.component';
 import { HostLobbyComponent } from './host-lobby.component';
+import { JustOneHostComponent } from './justone-host.component';
+import { UndercoverHostComponent } from './undercover-host.component';
 
 @Component({
   selector: 'app-host',
-  imports: [RouterLink, ControlBarComponent, HostGameComponent, HostLobbyComponent],
+  imports: [RouterLink, ControlBarComponent, HostLobbyComponent, JustOneHostComponent, UndercoverHostComponent],
   template: `
     @if (deniedMessage(); as denied) {
       <main class="denied">
@@ -33,10 +34,16 @@ import { HostLobbyComponent } from './host-lobby.component';
         </header>
 
         <main>
-          @if (v.room.game) {
-            <app-host-game [view]="v" />
-          } @else {
-            <app-host-lobby [view]="v" />
+          @switch (v.room.game?.kind) {
+            @case ('undercover') {
+              <app-undercover-host [view]="v" />
+            }
+            @case ('justone') {
+              <app-justone-host [view]="v" />
+            }
+            @default {
+              <app-host-lobby [view]="v" />
+            }
           }
         </main>
 

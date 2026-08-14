@@ -12,7 +12,9 @@ import type {
   ContentMode,
   GameActionPayload,
   GameEventMessage,
+  GameId,
   HostControlPayload,
+  JustOneParams,
   RoomCreateAck,
   RoomJoinAck,
   UndercoverParams,
@@ -83,8 +85,12 @@ export class SocketService {
     return ack;
   }
 
-  selectGame(contentMode: ContentMode, params: Partial<UndercoverParams>): Promise<ActionAck> {
-    return this.emitAck<ActionAck>(EVENTS.hostSelectGame, { game: 'undercover', contentMode, params });
+  selectGame(
+    game: Extract<GameId, 'undercover' | 'justone'>,
+    contentMode: ContentMode,
+    params: Partial<UndercoverParams> | Partial<JustOneParams>,
+  ): Promise<ActionAck> {
+    return this.emitAck<ActionAck>(EVENTS.hostSelectGame, { game, contentMode, params });
   }
 
   start(): Promise<ActionAck> {

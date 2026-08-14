@@ -12,7 +12,7 @@ import { EndRevealComponent } from '../../components/end-reveal.component';
 import { TimerBadgeComponent } from '../../components/timer-badge.component';
 
 @Component({
-  selector: 'app-player-game',
+  selector: 'app-undercover-player',
   imports: [FormsModule, EndRevealComponent, TimerBadgeComponent],
   template: `
     @if (game(); as g) {
@@ -244,7 +244,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
     `,
   ],
 })
-export class PlayerGameComponent {
+export class UndercoverPlayerComponent {
   private readonly socket = inject(SocketService);
   readonly view = input.required<ClientView>();
   protected readonly roleLabel = roleLabel;
@@ -264,7 +264,10 @@ export class PlayerGameComponent {
     });
   }
 
-  readonly game = computed<UndercoverPublicView | undefined>(() => this.view().room.game);
+  readonly game = computed<UndercoverPublicView | undefined>(() => {
+    const g = this.view().room.game;
+    return g?.kind === 'undercover' ? g : undefined;
+  });
   readonly me = computed<UndercoverMeView | undefined>(() => this.view().me?.game?.undercover);
   readonly myEndRole = computed(() => {
     const end = this.game()?.end;

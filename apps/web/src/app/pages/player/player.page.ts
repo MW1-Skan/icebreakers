@@ -6,13 +6,14 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
-import { PlayerGameComponent } from './player-game.component';
+import { JustOnePlayerComponent } from './justone-player.component';
+import { UndercoverPlayerComponent } from './undercover-player.component';
 import { PlayersGridComponent } from '../../components/players-grid.component';
 import { RecapBannerComponent } from '../../components/recap-banner.component';
 
 @Component({
   selector: 'app-player',
-  imports: [RouterLink, PlayerGameComponent, PlayersGridComponent, RecapBannerComponent],
+  imports: [RouterLink, JustOnePlayerComponent, UndercoverPlayerComponent, PlayersGridComponent, RecapBannerComponent],
   template: `
     @if (fatalError(); as fatal) {
       <main class="center">
@@ -50,7 +51,14 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
               <app-recap-banner [recap]="v.room.recap" />
             </div>
           } @else {
-            <app-player-game [view]="v" />
+            @switch (v.room.game?.kind) {
+              @case ('undercover') {
+                <app-undercover-player [view]="v" />
+              }
+              @case ('justone') {
+                <app-justone-player [view]="v" />
+              }
+            }
           }
         </main>
       </div>

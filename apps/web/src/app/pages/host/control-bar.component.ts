@@ -123,6 +123,14 @@ export class ControlBarComponent {
     if (room.status === 'recap') return 'Retour au lobby';
     const game = room.game;
     if (!game) return 'Continuer';
+    if (game.kind === 'justone') {
+      if (game.phase === 'resolve') {
+        return game.mancheIndex < game.manchesTotal
+          ? `Manche suivante (${game.mancheIndex + 1}/${game.manchesTotal})`
+          : 'Voir le score final';
+      }
+      return 'Continuer';
+    }
     switch (game.phase) {
       case 'distribute':
         return 'Commencer le tour de parole';
