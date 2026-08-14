@@ -58,11 +58,28 @@ export const undercoverParamsSchema = z.object({
   describePasses: z.number().int().min(1).max(3).optional(),
 });
 
-export const hostSelectGameSchema = z.object({
-  game: z.literal('undercover'),
-  contentMode: z.enum(['interne', 'normal', 'random']),
-  params: undercoverParamsSchema.default({}),
+export const justoneParamsSchema = z.object({
+  manchesCount: z.number().int().min(5).max(13).optional(),
+  writeSeconds: z.number().int().min(15).max(180).optional(),
+  validateSeconds: z.number().int().min(10).max(120).optional(),
+  guessSeconds: z.number().int().min(15).max(180).optional(),
+  softPenalty: z.boolean().optional(),
 });
+
+const contentModeSchema = z.enum(['interne', 'normal', 'random']);
+
+export const hostSelectGameSchema = z.discriminatedUnion('game', [
+  z.object({
+    game: z.literal('undercover'),
+    contentMode: contentModeSchema,
+    params: undercoverParamsSchema.default({}),
+  }),
+  z.object({
+    game: z.literal('justone'),
+    contentMode: contentModeSchema,
+    params: justoneParamsSchema.default({}),
+  }),
+]);
 
 export const hostStartSchema = z.object({}).default({});
 export const hostNextSchema = z.object({}).default({});
@@ -77,9 +94,27 @@ export const hostControlSchema = z.discriminatedUnion('type', [
 ]);
 
 export const gameActionSchema = z.discriminatedUnion('type', [
+  // Undercover
   z.object({ type: z.literal('seenWord') }),
   z.object({ type: z.literal('vote'), target: z.union([z.string(), z.literal('blank')]) }),
   z.object({ type: z.literal('guess'), guess: z.string().trim().min(1).max(60) }),
+  // Just One
+  z.object({
+    type: z.literal('clue'),
+    text: z
+      .string()
+      .trim()
+      .min(1, 'Ton indice est vide.')
+      .max(30, '30 caractères maximum.')
+      .regex(/^\S+$/, 'Un seul mot (les traits d’union sont admis).'),
+  }),
+  z.object({ type: z.literal('flagClue'), giverId: z.string(), cancelled: z.boolean() }),
+  z.object({ type: z.literal('ready') }),
+  z.object({ type: z.literal('pass') }),
+  z.object({
+    type: z.literal('arbitrate'),
+    decision: z.enum(['unplayable', 'accept', 'reject', 'forceClose']),
+  }),
 ]);
 
 export type RoomCreatePayload = z.infer<typeof roomCreateSchema>;

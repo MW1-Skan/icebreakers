@@ -111,12 +111,6 @@ export type UndercoverAction =
   | { type: 'TIMEOUT'; timerId: UndercoverTimerId }
   | { type: 'HOST_REMOVE_PLAYER'; playerId: PlayerId };
 
-/** Effets émis par le réducteur, exécutés par le serveur (jamais par le réducteur lui-même). */
-export type GameEffect =
-  | { type: 'timer:start'; id: UndercoverTimerId; seconds: number }
-  | { type: 'timer:cancel'; id: UndercoverTimerId }
-  | { type: 'game:event'; name: string; payload?: Record<string, unknown> }
-  | { type: 'game:ended'; winner: UndercoverWinner };
 
 /** Répartition des rôles par effectif (fiche 5.1 ; 9–10 extrapolés, cf. DECISIONS.md). */
 export const UNDERCOVER_DEFAULT_ROLES: Record<number, { undercover: number; mrWhite: boolean }> = {

@@ -207,6 +207,8 @@ export const packSchema = z.discriminatedUnion(
 export type Pack = z.infer<typeof packSchema>;
 export type UndercoverPack = Extract<Pack, { game: 'undercover' }>;
 export type UndercoverPackEntry = UndercoverPack['entries'][number];
+export type JustOnePack = Extract<Pack, { game: 'justone' }>;
+export type JustOnePackEntry = JustOnePack['entries'][number];
 
 /** Identifiant d'un élément de contenu : `packId#index` (§4.2, anti-répétition). */
 export function entryElementId(packId: string, index: number): string {

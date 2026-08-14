@@ -5,6 +5,8 @@
 import type { ContentMode, GameId, GameResult, PlayerId, RoomStatus, ViewerKind } from './types';
 import type { UndercoverParams } from './undercover/types';
 import type { UndercoverMeView, UndercoverPublicView } from './undercover/view';
+import type { JustOneParams } from './justone/types';
+import type { JustOneMeView, JustOnePublicView } from './justone/view';
 
 export interface TimerView {
   id: string;
@@ -29,14 +31,12 @@ export type RoomNotice =
   | { kind: 'contentRecycled' } // pack épuisé → re-mélange (bandeau host)
   | { kind: 'hostDisconnected' }; // pause auto (§3.4)
 
-export type GamePublicView = UndercoverPublicView;
-export type GameMeView = { undercover?: UndercoverMeView };
+export type GamePublicView = UndercoverPublicView | JustOnePublicView;
+export type GameMeView = { undercover?: UndercoverMeView; justone?: JustOneMeView };
 
-export interface GameSelectionView {
-  game: GameId;
-  contentMode: ContentMode;
-  params: UndercoverParams;
-}
+export type GameSelectionView =
+  | { game: 'undercover'; contentMode: ContentMode; params: UndercoverParams }
+  | { game: 'justone'; contentMode: ContentMode; params: JustOneParams };
 
 /** Projection publique du salon — strictement identique host / miroir / joueurs. */
 export interface RoomPublicView {
