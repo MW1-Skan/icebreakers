@@ -34,6 +34,14 @@ import {
 import { projectWavelengthMe, projectWavelengthPublic } from '../games/wavelength/wavelength.project';
 import { guardIto, resolveItoParams, validateItoSetup } from '../games/ito/ito.engine';
 import { projectItoMe, projectItoPublic } from '../games/ito/ito.project';
+import {
+  guardSpyfall,
+  resolveSpyfallParams,
+  validateSpyfallSetup,
+} from '../games/spyfall/spyfall.engine';
+import { projectSpyfallMe, projectSpyfallPublic } from '../games/spyfall/spyfall.project';
+import { guardTaboo, resolveTabooParams, validateTabooSetup } from '../games/taboo/taboo.engine';
+import { projectTabooMe, projectTabooPublic } from '../games/taboo/taboo.project';
 import type { ProjectionCtx, Room } from './room.types';
 
 function connectedIdsOf(room: Room): PlayerId[] {
@@ -54,8 +62,14 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
   } else if (room.selection.game === 'wavelength') {
     const setup = validateWavelengthSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
-  } else {
+  } else if (room.selection.game === 'ito') {
     const setup = validateItoSetup(playerCount);
+    if (!setup.ok) blockers.push(setup.message);
+  } else if (room.selection.game === 'spyfall') {
+    const setup = validateSpyfallSetup(playerCount);
+    if (!setup.ok) blockers.push(setup.message);
+  } else {
+    const setup = validateTabooSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
   }
   const { contentMode } = room.selection;
@@ -92,6 +106,18 @@ function projectSelection(room: Room, ctx: ProjectionCtx): GameSelectionView | u
         contentMode: room.selection.contentMode,
         params: resolveItoParams(room.selection.paramOverrides),
       };
+    case 'spyfall':
+      return {
+        game: 'spyfall',
+        contentMode: room.selection.contentMode,
+        params: resolveSpyfallParams(room.selection.paramOverrides),
+      };
+    case 'taboo':
+      return {
+        game: 'taboo',
+        contentMode: room.selection.contentMode,
+        params: resolveTabooParams(room.selection.paramOverrides),
+      };
   }
 }
 
@@ -106,6 +132,10 @@ function projectGamePublic(room: Room): GamePublicView | undefined {
       return projectWavelengthPublic(room.game, connectedIdsOf(room));
     case 'ito':
       return projectItoPublic(room.game);
+    case 'spyfall':
+      return projectSpyfallPublic(room.game, connectedIdsOf(room));
+    case 'taboo':
+      return projectTabooPublic(room.game, connectedIdsOf(room));
   }
 }
 
@@ -164,6 +194,12 @@ function projectHostControls(room: Room, ctx: ProjectionCtx): HostControlsView {
       case 'ito':
         canNext = guardIto(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
         break;
+      case 'spyfall':
+        canNext = guardSpyfall(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
+      case 'taboo':
+        canNext = guardTaboo(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
     }
   } else if (room.status === 'recap') {
     canNext = true; // retour au lobby
@@ -195,6 +231,10 @@ function projectMeGame(room: Room, playerId: PlayerId): GameMeView | undefined {
       return { wavelength: projectWavelengthMe(room.game, playerId) };
     case 'ito':
       return { ito: projectItoMe(room.game, playerId) };
+    case 'spyfall':
+      return { spyfall: projectSpyfallMe(room.game, playerId) };
+    case 'taboo':
+      return { taboo: projectTabooMe(room.game, playerId) };
   }
 }
 

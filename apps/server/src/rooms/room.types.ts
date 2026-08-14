@@ -13,6 +13,10 @@ import type {
   PlayerId,
   Rng,
   RoomStatus,
+  SpyfallParams,
+  SpyfallState,
+  TabooParams,
+  TabooState,
   TimerView,
   UndercoverParams,
   UndercoverState,
@@ -20,14 +24,22 @@ import type {
   WavelengthState,
 } from '../shared';
 
-export type GameState = UndercoverState | JustOneState | WavelengthState | ItoState;
+export type GameState =
+  | UndercoverState
+  | JustOneState
+  | WavelengthState
+  | ItoState
+  | SpyfallState
+  | TabooState;
 
 /** Surcharges explicites du host ; les défauts sont résolus au lancement. */
 export type GameSelection =
   | { game: 'undercover'; contentMode: ContentMode; paramOverrides: Partial<UndercoverParams> }
   | { game: 'justone'; contentMode: ContentMode; paramOverrides: Partial<JustOneParams> }
   | { game: 'wavelength'; contentMode: ContentMode; paramOverrides: Partial<WavelengthParams> }
-  | { game: 'ito'; contentMode: ContentMode; paramOverrides: Partial<ItoParams> };
+  | { game: 'ito'; contentMode: ContentMode; paramOverrides: Partial<ItoParams> }
+  | { game: 'spyfall'; contentMode: ContentMode; paramOverrides: Partial<SpyfallParams> }
+  | { game: 'taboo'; contentMode: ContentMode; paramOverrides: Partial<TabooParams> };
 
 export interface Room {
   code: string; // "KZTR"

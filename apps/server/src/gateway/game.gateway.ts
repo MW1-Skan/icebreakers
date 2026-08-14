@@ -33,6 +33,8 @@ import type {
   MirrorJoinAck,
   RoomCreateAck,
   RoomJoinAck,
+  SpyfallAction,
+  TabooAction,
   UndercoverAction,
   Viewer,
   WavelengthAction,
@@ -117,6 +119,28 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         ) {
           this.games.dispatch(room, { type: 'TELEPATH_LEFT' });
         }
+        // Spyfall : espion déconnecté → gel de la manche (fiche 5.4).
+        if (
+          room.status === 'inGame' &&
+          room.game?.kind === 'spyfall' &&
+          room.game.spyId === viewer.playerId &&
+          !room.game.frozen &&
+          !['reveal', 'end'].includes(room.game.phase)
+        ) {
+          this.games.dispatch(room, { type: 'SPY_DISCONNECTED' });
+        }
+        // Taboo : orateur ou devineur du binôme actif déconnecté → chrono en pause (fiche 5.6).
+        if (
+          room.status === 'inGame' &&
+          room.game?.kind === 'taboo' &&
+          room.game.phase === 'live' &&
+          !room.game.frozen &&
+          room.game.current &&
+          (room.game.current.oratorId === viewer.playerId ||
+            room.game.current.guesserIds.includes(viewer.playerId))
+        ) {
+          this.games.dispatch(room, { type: 'PLAYER_GONE' });
+        }
       }
     } else if (viewer.kind === 'mirror') {
       room.mirrorConnected = this.hasViewer(code, (v) => v.kind === 'mirror');
@@ -169,6 +193,26 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         room.game.guesserFrozen
       ) {
         this.games.dispatch(room, { type: 'GUESSER_RECONNECTED' });
+      }
+      // Spyfall : l'espion revient → dégel.
+      if (
+        room.status === 'inGame' &&
+        room.game?.kind === 'spyfall' &&
+        room.game.spyId === found.player.id &&
+        room.game.frozen
+      ) {
+        this.games.dispatch(room, { type: 'SPY_RECONNECTED' });
+      }
+      // Taboo : l'orateur/devineur revient → le chrono repart.
+      if (
+        room.status === 'inGame' &&
+        room.game?.kind === 'taboo' &&
+        room.game.frozen &&
+        room.game.current &&
+        (room.game.current.oratorId === found.player.id ||
+          room.game.current.guesserIds.includes(found.player.id))
+      ) {
+        this.games.dispatch(room, { type: 'PLAYER_BACK' });
       }
       this.broadcastRoom(room);
       return { ok: true, code: room.code, playerId: found.player.id, token };
@@ -240,6 +284,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           paramOverrides: parsed.data.params,
         };
         break;
+      case 'spyfall':
+        ctx.room.selection = {
+          game: 'spyfall',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
+      case 'taboo':
+        ctx.room.selection = {
+          game: 'taboo',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
     }
     this.rooms.touch(ctx.room);
     this.broadcastRoom(ctx.room);
@@ -289,6 +347,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     ) {
       return this.games.nextItoManche(room);
     }
+    if (
+      room.game?.kind === 'spyfall' &&
+      room.game.phase === 'reveal' &&
+      room.game.mancheIndex < room.game.params.manchesCount
+    ) {
+      return this.games.nextSpyfallManche(room);
+    }
     return this.games.dispatch(room, { type: 'HOST_NEXT' });
   }
 
@@ -331,6 +396,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return this.games.dispatch(room, { type: 'HOST_INVALIDATE_CLUE' });
       case 'changeTheme':
         return this.games.itoChangeTheme(room);
+      case 'cancelBuzz':
+        if (room.game?.kind !== 'taboo') {
+          return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucun buzz à annuler.' } };
+        }
+        return this.games.dispatch(room, { type: 'HOST_CANCEL_BUZZ', countAsFound: control.countAsFound });
       case 'kick': {
         const kicked = this.rooms.kickPlayer(room, control.playerId);
         if (!kicked.ok) return kicked;
@@ -389,7 +459,52 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const action: ItoAction = { type: 'PLAY_CARD', playerId };
       return this.games.dispatch(room, action);
     }
+    if (room.game?.kind === 'spyfall') {
+      const action = this.mapSpyfallAction(parsed.data, playerId);
+      if (!action) return this.wrongGame();
+      return this.games.dispatch(room, action);
+    }
+    if (room.game?.kind === 'taboo') {
+      const action = this.mapTabooAction(parsed.data, playerId);
+      if (!action) return this.wrongGame();
+      return this.games.dispatch(room, action);
+    }
     return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune partie en cours.' } };
+  }
+
+  private mapSpyfallAction(payload: GameActionPayload, playerId: string): SpyfallAction | undefined {
+    switch (payload.type) {
+      case 'seenWord':
+        return { type: 'SEEN_CARD', playerId };
+      case 'accuse':
+        return { type: 'ACCUSE', accuserId: playerId, accusedId: payload.accusedId };
+      case 'voteAccusation':
+        return { type: 'VOTE_ACCUSATION', playerId, yes: payload.yes };
+      case 'spyGuess':
+        return payload.card
+          ? { type: 'SPY_GUESS', playerId, card: payload.card }
+          : { type: 'SPY_REVEAL', playerId };
+      case 'vote':
+        if (payload.target === 'blank') return undefined;
+        return { type: 'VOTE_FINAL', playerId, target: payload.target };
+      default:
+        return undefined;
+    }
+  }
+
+  private mapTabooAction(payload: GameActionPayload, playerId: string): TabooAction | undefined {
+    switch (payload.type) {
+      case 'go':
+        return { type: 'GO', playerId };
+      case 'found':
+        return { type: 'FOUND', playerId, cardSeq: payload.cardSeq };
+      case 'passCard':
+        return { type: 'PASS_CARD', playerId, cardSeq: payload.cardSeq };
+      case 'buzz':
+        return { type: 'BUZZ', playerId, cardSeq: payload.cardSeq };
+      default:
+        return undefined;
+    }
   }
 
   private mapWavelengthAction(payload: GameActionPayload, playerId: string): WavelengthAction | undefined {

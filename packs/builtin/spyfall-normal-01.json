@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "spyfall-normal-01",
+  "game": "spyfall",
+  "name": "Grand public",
+  "mode": "normal",
+  "lang": "fr",
+  "author": "Icebreakers",
+  "entries": [
+    {
+      "category": "Lieux",
+      "items": ["La plage", "Le casino", "La station spatiale", "Le sous-marin", "Le supermarché", "L'école", "Le théâtre", "L'avion de ligne", "La piscine municipale", "Le refuge de montagne"]
+    },
+    {
+      "category": "Personnages de fiction",
+      "items": ["Sherlock Holmes", "Batman", "Hermione Granger", "Dark Vador", "Astérix", "Elsa", "Mario", "James Bond", "Lara Croft", "Shrek"]
+    },
+    {
+      "category": "Métiers",
+      "items": ["Boulanger", "Pompier", "Astronaute", "Vétérinaire", "Avocat", "Professeur", "Plombier", "Pilote de ligne", "Coiffeur", "Météorologue"]
+    },
+    {
+      "category": "Animaux",
+      "items": ["Éléphant", "Pingouin", "Requin", "Chat", "Aigle", "Fourmi", "Dauphin", "Panda", "Caméléon", "Castor"]
+    }
+  ]
+}

@@ -7,7 +7,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { entryElementId, validatePack } from '../shared';
+import { entryElementId, normalizeText, validatePack } from '../shared';
 import type {
   ContentMode,
   GameId,
@@ -16,6 +16,8 @@ import type {
   Pack,
   PackMode,
   Rng,
+  SpyfallPackEntry,
+  TabooCard,
   UndercoverPackEntry,
   WavelengthPackEntry,
 } from '../shared';
@@ -158,6 +160,75 @@ export class PacksService implements OnModuleInit {
     teamName?: string,
   ): DrawnElement<ItoPackEntry> | { error: 'NO_CONTENT' } {
     return this.drawEntry<ItoPackEntry>('ito', contentMode, usedEntryIds, rng, randomWeight, teamName);
+  }
+
+  private modesInScope(contentMode: ContentMode): PackMode[] {
+    return contentMode === 'random' ? ['interne', 'normal'] : [contentMode];
+  }
+
+  /**
+   * Spyfall : tire un THÈME (anti-répétition sur l'entrée), puis construit la
+   * grille = union des items de ce thème sur tous les packs actifs du mode
+   * (fiche 5.4 — en Random, les items internes et normaux se mélangent).
+   */
+  drawSpyfallTheme(
+    contentMode: ContentMode,
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    randomWeight: number,
+    teamName?: string,
+  ): (DrawnElement<SpyfallPackEntry> & { category: string; grid: string[] }) | { error: 'NO_CONTENT' } {
+    const drawn = this.drawEntry<SpyfallPackEntry>('spyfall', contentMode, usedEntryIds, rng, randomWeight, teamName);
+    if ('error' in drawn) return drawn;
+    return {
+      ...drawn,
+      category: drawn.entry.category,
+      grid: this.spyfallGridFor(drawn.entry.category, contentMode),
+    };
+  }
+
+  /** Union dédupliquée (normalisée) des items d'un thème sur les packs du mode. */
+  spyfallGridFor(category: string, contentMode: ContentMode): string[] {
+    const normalizedCategory = normalizeText(category);
+    const seen = new Set<string>();
+    const grid: string[] = [];
+    for (const mode of this.modesInScope(contentMode)) {
+      for (const pack of this.packsFor('spyfall', mode)) {
+        for (const entry of pack.entries as SpyfallPackEntry[]) {
+          if (normalizeText(entry.category) !== normalizedCategory) continue;
+          for (const item of entry.items) {
+            const key = normalizeText(item);
+            if (!seen.has(key)) {
+              seen.add(key);
+              grid.push(item);
+            }
+          }
+        }
+      }
+    }
+    return grid;
+  }
+
+  /**
+   * Taboo : le deck entier du mode (union, dédupliqué par mot). Le jeu consomme
+   * des dizaines de cartes par partie — l'anti-répétition par élément ne
+   * s'applique pas (cf. DECISIONS.md).
+   */
+  tabooCards(contentMode: ContentMode): TabooCard[] {
+    const seen = new Set<string>();
+    const cards: TabooCard[] = [];
+    for (const mode of this.modesInScope(contentMode)) {
+      for (const pack of this.packsFor('taboo', mode)) {
+        for (const entry of pack.entries as Array<{ word: string; forbidden: string[] }>) {
+          const key = normalizeText(entry.word);
+          if (!seen.has(key)) {
+            seen.add(key);
+            cards.push({ word: entry.word, forbidden: [...entry.forbidden] });
+          }
+        }
+      }
+    }
+    return cards;
   }
 
   /**

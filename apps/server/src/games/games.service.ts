@@ -9,6 +9,8 @@ import type {
   ItoAction,
   JustOneAction,
   PlayerId,
+  SpyfallAction,
+  TabooAction,
   UndercoverAction,
   WavelengthAction,
   WsError,
@@ -60,9 +62,32 @@ import {
   startNextItoManche,
   validateItoSetup,
 } from './ito/ito.engine';
+import {
+  buildSpyfallResult,
+  guardSpyfall,
+  initSpyfall,
+  reduceSpyfall,
+  resolveSpyfallParams,
+  startNextSpyfallManche,
+  validateSpyfallSetup,
+} from './spyfall/spyfall.engine';
+import {
+  buildTabooResult,
+  guardTaboo,
+  initTaboo,
+  reduceTaboo,
+  resolveTabooParams,
+  validateTabooSetup,
+} from './taboo/taboo.engine';
 import type { GameEffect } from '../shared';
 
-export type GameAction = UndercoverAction | JustOneAction | WavelengthAction | ItoAction;
+export type GameAction =
+  | UndercoverAction
+  | JustOneAction
+  | WavelengthAction
+  | ItoAction
+  | SpyfallAction
+  | TabooAction;
 
 @Injectable()
 export class GamesService {
@@ -100,7 +125,97 @@ export class GamesService {
         return this.startWavelength(room);
       case 'ito':
         return this.startIto(room);
+      case 'spyfall':
+        return this.startSpyfall(room);
+      case 'taboo':
+        return this.startTaboo(room);
     }
+  }
+
+  private startSpyfall(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const selection = room.selection!;
+    if (selection.game !== 'spyfall') throw new Error('unreachable');
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateSpyfallSetup(playerIds.length);
+    if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
+    const params = resolveSpyfallParams(selection.paramOverrides);
+
+    const drawn = this.packs.drawSpyfallTheme(
+      selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = drawn.recycled;
+
+    const { state, effects } = initSpyfall(
+      playerIds,
+      { category: drawn.category, grid: drawn.grid },
+      params,
+      this.engineCtx(room),
+    );
+    room.game = state;
+    room.status = 'inGame';
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : Spyfall lancé (${playerIds.length} joueurs).`);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  private startTaboo(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const selection = room.selection!;
+    if (selection.game !== 'taboo') throw new Error('unreachable');
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateTabooSetup(playerIds.length);
+    if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
+    const params = resolveTabooParams(selection.paramOverrides);
+
+    const cards = this.packs.tabooCards(selection.contentMode);
+    if (cards.length < 10) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Pas assez de cartes Taboo pour ce mode.' } };
+    }
+
+    const { state, effects } = initTaboo(playerIds, cards, params, this.engineCtx(room));
+    room.game = state;
+    room.status = 'inGame';
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : Taboo lancé (${state.teams.length} binômes).`);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  /** Spyfall — manche suivante (host:next depuis la révélation). */
+  nextSpyfallManche(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (room.status !== 'inGame' || !game || game.kind !== 'spyfall' || game.phase !== 'reveal') {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune manche à enchaîner.' } };
+    }
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+    const drawn = this.packs.drawSpyfallTheme(
+      room.selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+    const next = startNextSpyfallManche(game, { category: drawn.category, grid: drawn.grid }, this.engineCtx(room));
+    if (!next) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'La partie est terminée.' } };
+    }
+    room.game = next.state;
+    this.rooms.touch(room);
+    this.applyEffects(room, next.effects);
+    return { ok: true };
   }
 
   private startWavelength(room: Room): { ok: true } | { ok: false; error: WsError } {
@@ -255,10 +370,30 @@ export class GamesService {
       this.applyEffects(room, effects);
       return { ok: true };
     }
-    const itoAction = action as ItoAction;
-    const guard = guardIto(room.game, itoAction, ctx);
+    if (room.game.kind === 'ito') {
+      const itoAction = action as ItoAction;
+      const guard = guardIto(room.game, itoAction, ctx);
+      if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+      const { state, effects } = reduceIto(room.game, itoAction, ctx);
+      room.game = state;
+      this.rooms.touch(room);
+      this.applyEffects(room, effects);
+      return { ok: true };
+    }
+    if (room.game.kind === 'spyfall') {
+      const sfAction = action as SpyfallAction;
+      const guard = guardSpyfall(room.game, sfAction, ctx);
+      if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+      const { state, effects } = reduceSpyfall(room.game, sfAction, ctx);
+      room.game = state;
+      this.rooms.touch(room);
+      this.applyEffects(room, effects);
+      return { ok: true };
+    }
+    const tabooAction = action as TabooAction;
+    const guard = guardTaboo(room.game, tabooAction, ctx);
     if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
-    const { state, effects } = reduceIto(room.game, itoAction, ctx);
+    const { state, effects } = reduceTaboo(room.game, tabooAction, ctx);
     room.game = state;
     this.rooms.touch(room);
     this.applyEffects(room, effects);
@@ -494,6 +629,14 @@ export class GamesService {
       const result = buildItoResult(game, room.players, Date.now());
       result.summary = `Partie écourtée (${game.history.length} manche${game.history.length > 1 ? 's' : ''}) — ${result.summary}`;
       room.sessionRecap.push(result);
+    } else if (game?.kind === 'spyfall' && game.history.length >= 1) {
+      const result = buildSpyfallResult(game, room.players, Date.now());
+      result.summary = `Partie écourtée — ${result.summary}`;
+      room.sessionRecap.push(result);
+    } else if (game?.kind === 'taboo' && game.passages.some((p) => !p.aborted)) {
+      const result = buildTabooResult(game, room.players, Date.now());
+      result.summary = `Partie écourtée — ${result.summary}`;
+      room.sessionRecap.push(result);
     }
     room.game = undefined;
     room.status = 'lobby';
@@ -546,6 +689,10 @@ export class GamesService {
             room.sessionRecap.push(buildWavelengthResult(room.game, room.players, Date.now()));
           } else if (room.game?.kind === 'ito') {
             room.sessionRecap.push(buildItoResult(room.game, room.players, Date.now()));
+          } else if (room.game?.kind === 'spyfall') {
+            room.sessionRecap.push(buildSpyfallResult(room.game, room.players, Date.now()));
+          } else if (room.game?.kind === 'taboo') {
+            room.sessionRecap.push(buildTabooResult(room.game, room.players, Date.now()));
           }
           events.push({ name: 'gameEnded', payload: effect.winner ? { winner: effect.winner } : undefined });
           break;
