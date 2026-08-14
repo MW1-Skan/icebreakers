@@ -45,13 +45,16 @@ passes de description avant chaque vote).
 
 | Issue | Points |
 |---|---|
-| Victoire des civils | 2 pts par civil, **+1 bonus 🎯** pour ceux qui ont visé un infiltré pendant les votes |
+| Victoire des civils | 2 pts par civil, **+1 bonus 🎯** pour ceux qui ont visé un infiltré lors d'un vote **où les civils n'étaient pas unanimes** |
 | Victoire des undercover | 3 pts par infiltré vivant |
 | Mr. White devine le mot | 4 pts, seul |
 
-Le bonus récompense la lucidité individuelle : viser un infiltré compte même si
-le groupe n'a pas suivi (re-vote d'égalité compris). Max civil (3) = victoire
-undercover (3) ; la victoire la plus difficile paie un cran au-dessus (4).
+Le bonus récompense la lucidité **individuelle** : viser un infiltré compte
+même si le groupe n'a pas suivi (re-vote d'égalité compris) — mais un vote où
+tous les civils convergent (plébiscite du premier tour, dernier tour à 2 civils
+contre 1 undercover…) ne distingue personne et ne rapporte rien, que la cible
+commune soit l'undercover ou Mr. White. Max civil (3) = victoire undercover
+(3) ; la victoire la plus difficile paie un cran au-dessus (4).
 
 Astuce dev/test : `http://localhost:4200/?seed=42` avant « Créer un salon »
 fixe la seed RNG du salon (rôles, paire de mots et ordre reproductibles).

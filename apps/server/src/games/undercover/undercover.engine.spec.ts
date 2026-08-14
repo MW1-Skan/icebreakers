@@ -603,32 +603,31 @@ describe('conditions de fin et points', () => {
     const players = ids(4).map((id, i) => ({ id, name: `Joueur${i + 1}`, avatar: '🦊', connected: true, joinedAt: 0 }));
     const result = buildUndercoverResult(end, players, 123);
     expect(result.summary).toBe('Victoire des civils');
-    expect(result.points.find((p) => p.playerId === 'p1')).toMatchObject({ name: 'Joueur1', points: 3 });
+    // vote unanime contre p4 → pas de bonus : 2 pts secs
+    expect(result.points.find((p) => p.playerId === 'p1')).toMatchObject({ name: 'Joueur1', points: 2 });
   });
 });
 
 // ─── Bonus de « bon vote » : suivi équitable des dépouillements ─────────────
 
 describe('suivi des bons votes', () => {
-  it('viser un infiltré compte même si le groupe ne suit pas (élimination d’un civil)', () => {
+  it('viser un infiltré compte quand les civils divergent — le bulletin de White, jamais', () => {
     let s = state5();
     for (const [voter, target] of [
-      ['p1', 'p2'],
-      ['p2', 'p1'],
+      ['p1', 'p3'],
+      ['p2', 'p4'], // seul civil à viser l'undercover
       ['p3', 'p1'],
       ['p4', 'p1'],
-      ['p5', 'p4'], // White vise l'undercover — enregistré, mais pas civil : jamais de bonus
+      ['p5', 'p4'], // Mr. White vise aussi l'undercover : pas un civil → jamais marqué
     ] as const) {
       s = dispatch(s, { type: 'CAST_VOTE', playerId: voter, target }).state;
     }
-    // p1 (civil) éliminé ; personne n'a visé d'infiltré côté civils
-    expect(s.lastReveal?.eliminated?.playerId).toBe('p1');
-    expect(s.goodVoterIds).toEqual(['p5']);
+    expect(s.goodVoterIds).toEqual(['p2']);
   });
 
-  it('le dépouillement qui déclenche un re-vote compte aussi', () => {
+  it('le dépouillement qui déclenche un re-vote compte ; un re-vote unanime ne marque personne', () => {
     let s = state4();
-    // égalité p3/p4 : p1 et p2 avaient visé p4 (undercover) dès le premier vote
+    // égalité p1/p4 : p1 et p2 avaient visé p4 (undercover), p3 a visé p1 → divergence
     s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p4' }).state;
     s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'p4' }).state;
     s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p3', target: 'p1' }).state;
@@ -636,13 +635,66 @@ describe('suivi des bons votes', () => {
     expect(s.revoteCandidates).toBeDefined();
     expect(new Set(s.goodVoterIds)).toEqual(new Set(['p1', 'p2']));
 
-    // au re-vote, p3 se rallie : lui aussi est marqué (sans doublonner p1/p2)
+    // au re-vote, tous les civils convergent sur p4 : unanimité → aucun nouveau marquage
     s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p4' }).state;
     s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'p4' }).state;
     s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p3', target: 'p4' }).state;
     const { state: after } = dispatch(s, { type: 'CAST_VOTE', playerId: 'p4', target: 'p1' });
     expect(after.lastReveal?.eliminated?.playerId).toBe('p4');
-    expect(new Set(after.goodVoterIds)).toEqual(new Set(['p1', 'p2', 'p3']));
+    expect(new Set(after.goodVoterIds)).toEqual(new Set(['p1', 'p2']));
+  });
+
+  it('cas utilisateur : tout le monde vote l’undercover dès le premier tour → aucun bonus', () => {
+    let s = state4();
+    for (const [voter, target] of [
+      ['p1', 'p4'],
+      ['p2', 'p4'],
+      ['p3', 'p4'],
+      ['p4', 'p1'],
+    ] as const) {
+      s = dispatch(s, { type: 'CAST_VOTE', playerId: voter, target }).state;
+    }
+    expect(s.goodVoterIds).toEqual([]);
+    const end = dispatch(s, { type: 'HOST_NEXT' }).state;
+    const rows = undercoverManchePoints(end);
+    expect(rows.every((r) => !r.goodVote)).toBe(true);
+    expect(rows.find((r) => r.playerId === 'p1')?.points).toBe(2); // 2 pts secs, pas de bonus
+  });
+
+  it('cas utilisateur : dernier tour à 2 civils contre 1 undercover, même vote → pas de nouveau bonus (l’acquis reste)', () => {
+    // p1 avait été marqué plus tôt dans la manche ; p3 et p5 sont déjà éliminés.
+    let s = state5({
+      alive: ['p1', 'p2', 'p4'],
+      goodVoterIds: ['p1'],
+      eliminations: [
+        { playerId: 'p3', role: 'civilian', round: 1, byAdmin: false },
+        { playerId: 'p5', role: 'mrwhite', round: 2, byAdmin: false },
+      ],
+    });
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p4' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'p4' }).state;
+    const { state: after } = dispatch(s, { type: 'CAST_VOTE', playerId: 'p4', target: 'p1' });
+    expect(after.winner).toBe('civilians');
+    expect(after.goodVoterIds).toEqual(['p1']); // p2 n'est pas marqué par ce vote unanime
+    const end = dispatch(after, { type: 'HOST_NEXT' }).state;
+    const byId = Object.fromEntries(undercoverManchePoints(end).map((r) => [r.playerId, r]));
+    expect(byId.p1).toMatchObject({ points: 3, goodVote: true });
+    expect(byId.p2).toMatchObject({ points: 2, goodVote: false });
+  });
+
+  it('même logique pour Mr. White : plébiscite unanime contre lui → aucun bonus', () => {
+    let s = state5();
+    for (const [voter, target] of [
+      ['p1', 'p5'],
+      ['p2', 'p5'],
+      ['p3', 'p5'],
+      ['p4', 'p5'],
+      ['p5', 'p1'],
+    ] as const) {
+      s = dispatch(s, { type: 'CAST_VOTE', playerId: voter, target }).state;
+    }
+    expect(s.lastReveal?.eliminated?.playerId).toBe('p5');
+    expect(s.goodVoterIds).toEqual([]);
   });
 
   it('votes blancs et votes contre un civil ne comptent pas', () => {
@@ -720,11 +772,12 @@ describe('manches multiples', () => {
     const { state } = finishManche(
       state4({ params: params({ manchesCount: 2 }), mancheIndex: 2, carriedPoints: { p4: 3, p1: 1 } }),
     );
-    // manche 2 : civils gagnent — p1..p3 ont visé p4 → 3 pts chacun
+    // manche 2 : civils gagnent à l'unanimité (pas de bonus) → 2 pts par civil
     const cumul = undercoverCumulativePoints(state);
-    expect(cumul[0]).toEqual({ playerId: 'p1', points: 4 });
+    expect(cumul[0].points).toBe(3); // p1 (1+2) et p4 (3+0) à égalité en tête
+    expect(cumul.find((c) => c.playerId === 'p1')).toEqual({ playerId: 'p1', points: 3 });
     expect(cumul.find((c) => c.playerId === 'p4')).toEqual({ playerId: 'p4', points: 3 });
-    expect(cumul.find((c) => c.playerId === 'p2')).toEqual({ playerId: 'p2', points: 3 });
+    expect(cumul.find((c) => c.playerId === 'p2')).toEqual({ playerId: 'p2', points: 2 });
   });
 
   it('initUndercover repart propre en manche suivante (cumul transmis, bons votes remis à zéro)', () => {
@@ -750,6 +803,6 @@ describe('manches multiples', () => {
     const result = buildUndercoverResult(state, players, 0);
     expect(result.summary).toContain('2 manches');
     expect(result.summary).toContain('Joueur1');
-    expect(result.points.find((p) => p.playerId === 'p1')?.points).toBe(5);
+    expect(result.points.find((p) => p.playerId === 'p1')?.points).toBe(4); // 2 (report) + 2 (manche unanime)
   });
 });

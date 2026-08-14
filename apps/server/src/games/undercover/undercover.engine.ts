@@ -439,13 +439,26 @@ function handleTimeout(state: UndercoverState, timerId: 'discuss' | 'vote' | 'wh
 // ─── Dépouillement (fiche 5.1 étape 6 : égalités, re-vote, votes blancs) ────
 
 function resolveVotes(baseState: UndercoverState, extraEffects: GameEffect[] = []): ReduceResult<UndercoverState> {
-  // Bonus de « bon vote » : tout dépouillement (élimination, égalité, re-vote
-  // déclenché) marque les votants ayant visé un infiltré — même si le groupe
-  // n'a pas suivi. Base du +1 des civils en cas de victoire (cf. DECISIONS.md).
+  // Bonus de « bon vote » : un dépouillement (élimination, égalité, re-vote
+  // déclenché) marque les CIVILS ayant visé un infiltré — uniquement si les
+  // civils n'ont pas tous voté la même chose. Une convergence unanime (plébiscite
+  // dès le tour 1, dernier tour à 2 civils…) ne distingue personne : pas de
+  // bonus, que la cible commune soit l'undercover ou Mr. White (cf. DECISIONS.md).
   const goodVoterIds = [...baseState.goodVoterIds];
-  for (const [voterId, target] of Object.entries(baseState.votes)) {
-    if (target !== 'blank' && baseState.roles[target] !== 'civilian' && !goodVoterIds.includes(voterId)) {
-      goodVoterIds.push(voterId);
+  const civilianBallots = baseState.alive
+    .filter((id) => baseState.roles[id] === 'civilian')
+    .map((id) => baseState.votes[id] ?? 'blank');
+  const civiliansUnanimous = new Set(civilianBallots).size <= 1;
+  if (!civiliansUnanimous) {
+    for (const [voterId, target] of Object.entries(baseState.votes)) {
+      if (
+        baseState.roles[voterId] === 'civilian' &&
+        target !== 'blank' &&
+        baseState.roles[target] !== 'civilian' &&
+        !goodVoterIds.includes(voterId)
+      ) {
+        goodVoterIds.push(voterId);
+      }
     }
   }
   const state: UndercoverState = { ...baseState, goodVoterIds };

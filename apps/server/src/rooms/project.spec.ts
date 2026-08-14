@@ -143,12 +143,14 @@ function atReveal(): UndercoverState {
   return s;
 }
 
-/** p5 (Mr. White) éliminé par vote → phase whiteGuess ouverte. */
+/** p5 (Mr. White) éliminé par vote → phase whiteGuess ouverte.
+ * Bulletins civils divergents (p3 vise p4) : p1, p2 et p3 marqués « bon vote ». */
 function atWhiteGuess(): UndercoverState {
   let s = atVote();
-  for (const voter of ['p1', 'p2', 'p3', 'p4'] as const) {
-    s = dispatch(s, { type: 'CAST_VOTE', playerId: voter, target: 'p5' });
-  }
+  s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p5' });
+  s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'p5' });
+  s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p3', target: 'p4' });
+  s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p4', target: 'p5' });
   s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p5', target: 'p1' });
   return dispatch(s, { type: 'HOST_NEXT' });
 }

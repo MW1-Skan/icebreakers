@@ -3,11 +3,14 @@
  * une SÉRIE de 2 manches d'Undercover, de la distribution au classement final.
  *
  * Déterminisme : seed RNG injectée via /?seed=42 (acceptée hors production).
- * La cible du vote n'est pas codée en dur : les joueurs comparent leurs mots
- * (3 identiques, 1 différent à 4 joueurs — pas de Mr. White) et éliminent le
- * porteur du mot minoritaire → victoire des civils à chaque manche. Les trois
- * civils ayant « bien voté », chacun marque 2 + 1 bonus = 3 pts par manche →
- * le cumul en tête vaut toujours 6 pts, quel que soit le tirage des rôles.
+ * Rien n'est codé en dur : les joueurs déduisent l'undercover en comparant
+ * leurs mots (3 identiques, 1 différent à 4 joueurs — pas de Mr. White).
+ *
+ * Schéma de vote par manche (exerce la règle du bonus « non unanime ») :
+ * deux civils « loyaux » votent l'undercover, un civil « dissident » vote un
+ * autre civil → l'undercover est éliminé (2 voix contre 1), les civils gagnent,
+ * et SEULS les deux loyaux touchent le bonus 🎯 (+1). Le test recalcule le
+ * cumul attendu et le confronte au classement final.
  */
 import { expect, test } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
@@ -20,7 +23,7 @@ function minorityIndex(words: string[]): number {
   return words.findIndex((w) => counts.get(w) === 1);
 }
 
-/** Joue une manche complète et renvoie l'index de l'undercover + les mots vus. */
+/** Joue une manche complète ; renvoie l'undercover et les mots pour le score attendu. */
 async function playManche(host: Page, players: Page[]): Promise<{ targetIndex: number; words: string[] }> {
   await expect(host.getByRole('heading', { name: 'Distribution des mots' })).toBeVisible();
 
@@ -33,6 +36,7 @@ async function playManche(host: Page, players: Page[]): Promise<{ targetIndex: n
   const targetIndex = minorityIndex(words);
   expect(targetIndex).toBeGreaterThanOrEqual(0);
   const targetName = PLAYER_NAMES[targetIndex];
+  const dissenterIndex = (targetIndex + 1) % 4;
 
   // Tour de description (l'animateur avance), discussion, vote.
   await host.getByRole('button', { name: 'Commencer le tour de parole' }).click();
@@ -42,13 +46,16 @@ async function playManche(host: Page, players: Page[]): Promise<{ targetIndex: n
   await host.getByRole('button', { name: 'Passer à la discussion' }).click();
   await host.getByRole('button', { name: 'Passer au vote' }).click();
 
-  // Vote secret : tous contre le mot minoritaire (lui vote quelqu'un d'autre).
+  // Vote : 2 civils loyaux → undercover ; le dissident → un civil ; l'undercover → le dissident.
   for (let i = 0; i < players.length; i++) {
-    const voteFor = i === targetIndex ? PLAYER_NAMES[(targetIndex + 1) % 4] : targetName;
+    let voteFor: string;
+    if (i === targetIndex) voteFor = PLAYER_NAMES[dissenterIndex];
+    else if (i === dissenterIndex) voteFor = PLAYER_NAMES[(targetIndex + 2) % 4];
+    else voteFor = targetName;
     await players[i].getByRole('button', { name: voteFor }).click();
   }
 
-  // Révélation : l'undercover est éliminé, rôle révélé.
+  // Révélation : l'undercover est éliminé (2 voix contre 1), rôle révélé.
   await expect(host.getByText(`${targetName} est éliminé·e`)).toBeVisible();
   await expect(host.locator('.role-reveal')).toHaveText('Undercover');
   await host.getByRole('button', { name: 'Continuer' }).click();
@@ -56,7 +63,13 @@ async function playManche(host: Page, players: Page[]): Promise<{ targetIndex: n
   return { targetIndex, words };
 }
 
-test('série de 2 manches : 1 animateur + 4 joueurs, cumul et bonus de bon vote', async ({ browser }) => {
+/** Points attendus de la manche : loyaux 2+1, dissident 2, undercover 0. */
+function manchePointsFor(targetIndex: number): number[] {
+  const dissenterIndex = (targetIndex + 1) % 4;
+  return PLAYER_NAMES.map((_, i) => (i === targetIndex ? 0 : i === dissenterIndex ? 2 : 3));
+}
+
+test('série de 2 manches : cumul, bonus 🎯 des seuls votes non unanimes', async ({ browser }) => {
   const contexts: BrowserContext[] = [];
 
   // ── L'animateur crée le salon (seed déterministe) ─────────────────────────
@@ -95,27 +108,34 @@ test('série de 2 manches : 1 animateur + 4 joueurs, cumul et bonus de bon vote'
   await expect(startButton).toBeEnabled();
   await startButton.click();
 
+  const expectedTotal = [0, 0, 0, 0];
+
   // ── Manche 1 ──────────────────────────────────────────────────────────────
   await expect(host.getByText('Manche 1/2')).toBeVisible();
   const manche1 = await playManche(host, players);
+  manchePointsFor(manche1.targetIndex).forEach((p, i) => (expectedTotal[i] += p));
 
-  // Fin de manche 1 : cumul intermédiaire, bonus 🎯, bouton « Manche suivante ».
+  // Fin de manche 1 : exactement 2 badges 🎯 (les loyaux, pas le dissident).
   await expect(host.getByRole('heading', { name: 'Fin de la manche 1' })).toBeVisible();
   await expect(host.getByText('Les civils gagnent !')).toBeVisible();
-  await expect(host.getByText('Cumul après cette manche')).toBeVisible();
+  await expect(host.locator('.reveal .bonus')).toHaveCount(2);
   await expect(host.getByText('🎯 = bonus de bon vote (+1)')).toBeVisible();
+  await expect(host.getByText('Cumul après cette manche')).toBeVisible();
   await expect(players[0].getByText('la suivante arrive')).toBeVisible();
   await host.getByRole('button', { name: 'Manche suivante (2/2)' }).click();
 
   // ── Manche 2 : nouveau tirage (anti-répétition intra-salon) ───────────────
   await expect(host.getByText('Manche 2/2')).toBeVisible();
   const manche2 = await playManche(host, players);
+  manchePointsFor(manche2.targetIndex).forEach((p, i) => (expectedTotal[i] += p));
   expect(new Set(manche2.words)).not.toEqual(new Set(manche1.words));
 
-  // ── Fin de série : classement final, 6 pts en tête (3 + 3, bonus compris) ─
+  // ── Fin de série : classement final = cumul recalculé par le test ─────────
   await expect(host.getByRole('heading', { name: 'Fin de la série' })).toBeVisible();
   await expect(host.getByText('Classement final de la série')).toBeVisible();
-  await expect(host.locator('.cumulative li.leader')).toContainText('6 pts');
+  const maxPoints = Math.max(...expectedTotal);
+  await expect(host.locator('.cumulative li.leader')).toContainText(`${maxPoints} pts`);
+  await expect(host.locator('.cumulative li')).toHaveCount(4);
   for (const page of players) {
     await expect(page.getByText('Classement final de la série')).toBeVisible();
   }

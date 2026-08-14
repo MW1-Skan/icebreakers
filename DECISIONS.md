@@ -118,15 +118,22 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   voté » ; undercover vainqueurs 3 pts par infiltré vivant ; Mr. White 4 pts
   sur guess gagnant (le 8 de la fiche écraserait la nouvelle échelle ; 4 = un
   cran au-dessus du max civil de 3, pour la victoire la plus difficile).
-- **Définition du « bon vote »** (équité) : à CHAQUE dépouillement (élimination,
-  égalité, y compris celui qui déclenche un re-vote), tout votant dont le
-  bulletin visait un infiltré est marqué — même si le groupe n'a pas suivi.
-  Une seule marque par manche (bonus plat de +1, pas de cumul par tour, pour ne
-  pas sur-payer les manches longues). Réservé aux civils, versé uniquement si
-  les civils gagnent. Votes blancs et votes contre un civil ne comptent pas.
-  Le suivi (`goodVoterIds`) ne sort JAMAIS du serveur avant la phase de fin
-  (test de non-fuite dédié) : en cours de manche, il révélerait à la fois des
-  bulletins et des rôles.
+- **Définition du « bon vote »** (équité, affinée sur demande) : à CHAQUE
+  dépouillement (élimination, égalité, y compris celui qui déclenche un
+  re-vote), un civil dont le bulletin visait un infiltré est marqué — **à
+  condition que les civils vivants n'aient pas tous voté la même chose**. Une
+  convergence unanime ne distingue personne : plébiscite dès le premier tour,
+  dernier tour à 2 civils contre 1 undercover, vote groupé contre Mr. White…
+  → aucun bonus (la règle s'applique quelle que soit la cible commune, White
+  compris ; les blancs comptent comme un choix distinct, donc un civil qui vote
+  juste pendant que les autres s'abstiennent est bien marqué ; un civil seul en
+  vie est trivialement « unanime » → jamais de marque). Une seule marque par
+  manche (bonus plat de +1) ; une marque acquise lors d'un tour divergent reste
+  acquise même si les tours suivants sont unanimes. Réservé aux civils, versé
+  uniquement si les civils gagnent. Votes blancs et votes contre un civil ne
+  marquent jamais. Le suivi (`goodVoterIds`) ne sort JAMAIS du serveur avant la
+  phase de fin (test de non-fuite dédié) : en cours de manche, il révélerait à
+  la fois des bulletins et des rôles.
 
 ## Paramétrage et configuration
 
