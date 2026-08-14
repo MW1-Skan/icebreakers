@@ -3,7 +3,7 @@
  * par-dessus l'épaule), « c'est à toi », vote secret, spectateur si éliminé,
  * guess de Mr. White, révélation finale avec son propre rôle en grand.
  */
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { ClientView, UndercoverMeView, UndercoverPublicView } from '@icebreakers/shared';
 import { roleLabel } from '../../core/ui';
@@ -251,6 +251,18 @@ export class PlayerGameComponent {
 
   readonly revealed = signal(false);
   guessInput = '';
+
+  constructor() {
+    // Nouvelle manche = nouveau mot : la carte se re-masque (anti regard par-dessus l'épaule).
+    let lastManche: number | undefined;
+    effect(() => {
+      const manche = this.game()?.mancheIndex;
+      if (manche !== lastManche) {
+        lastManche = manche;
+        this.revealed.set(false);
+      }
+    });
+  }
 
   readonly game = computed<UndercoverPublicView | undefined>(() => this.view().room.game);
   readonly me = computed<UndercoverMeView | undefined>(() => this.view().me?.game?.undercover);

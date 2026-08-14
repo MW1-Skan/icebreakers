@@ -37,6 +37,22 @@ tout tourne sur http://localhost:3000.
 5. Rafraîchis n'importe quel onglet en cours de partie : le jeton en
    localStorage reconnecte le joueur (ou l'animateur) à sa place.
 
+Paramètres utiles au lancement : **Manches** (1 à 5 manches enchaînées, avec
+cumul des points et classement final de série) et **Tours de parole** (1 à 3
+passes de description avant chaque vote).
+
+### Barème Undercover
+
+| Issue | Points |
+|---|---|
+| Victoire des civils | 2 pts par civil, **+1 bonus 🎯** pour ceux qui ont visé un infiltré pendant les votes |
+| Victoire des undercover | 3 pts par infiltré vivant |
+| Mr. White devine le mot | 4 pts, seul |
+
+Le bonus récompense la lucidité individuelle : viser un infiltré compte même si
+le groupe n'a pas suivi (re-vote d'égalité compris). Max civil (3) = victoire
+undercover (3) ; la victoire la plus difficile paie un cran au-dessus (4).
+
 Astuce dev/test : `http://localhost:4200/?seed=42` avant « Créer un salon »
 fixe la seed RNG du salon (rôles, paire de mots et ordre reproductibles).
 Ignorée en production.

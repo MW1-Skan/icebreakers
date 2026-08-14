@@ -99,6 +99,35 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   élimination, guess résolu…) mais l'UI actuelle se contente de `room:state`
   (source de vérité) — ces événements sont les hooks des anims/sons futurs.
 
+## Évolutions demandées après la v1 (manches, tours de parole, bonus)
+
+- **Manches enchaînées** (`manchesCount`, 1–5) : une « partie » d'Undercover peut
+  être une série ; entre deux manches, `host:next` déclenche côté serveur un
+  nouveau tirage (l'I/O reste hors réducteur), le cumul des points est transmis
+  (`carriedPoints`) et l'effectif est re-validé (des joueurs ont pu partir ou
+  arriver — les arrivants intègrent la manche suivante, les points suivent le
+  `playerId`). Le récap de soirée reçoit UNE entrée par série (cumul) ; un
+  abandon en cours de série est tracé « Série écourtée (N manches jouées) » si
+  au moins une manche est terminée.
+- **« Plusieurs tours de table »** interprété comme : nombre de **passes de
+  description avant chaque vote** (`describePasses`, 1–3, même ordre de parole
+  répété). L'autre lecture (retarder le premier vote uniquement) est moins
+  régulière ; celle-ci s'applique uniformément à chaque cycle d'élimination.
+- **Barème révisé** (remplace les points suggérés de la fiche, à la demande) :
+  civils vainqueurs 2 pts chacun **+ 1 pt bonus** pour ceux qui ont « bien
+  voté » ; undercover vainqueurs 3 pts par infiltré vivant ; Mr. White 4 pts
+  sur guess gagnant (le 8 de la fiche écraserait la nouvelle échelle ; 4 = un
+  cran au-dessus du max civil de 3, pour la victoire la plus difficile).
+- **Définition du « bon vote »** (équité) : à CHAQUE dépouillement (élimination,
+  égalité, y compris celui qui déclenche un re-vote), tout votant dont le
+  bulletin visait un infiltré est marqué — même si le groupe n'a pas suivi.
+  Une seule marque par manche (bonus plat de +1, pas de cumul par tour, pour ne
+  pas sur-payer les manches longues). Réservé aux civils, versé uniquement si
+  les civils gagnent. Votes blancs et votes contre un civil ne comptent pas.
+  Le suivi (`goodVoterIds`) ne sort JAMAIS du serveur avant la phase de fin
+  (test de non-fuite dédié) : en cours de manche, il révélerait à la fois des
+  bulletins et des rôles.
+
 ## Paramétrage et configuration
 
 - **Défauts adaptatifs** : tant que le host ne touche à rien, la répartition des
