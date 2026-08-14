@@ -135,6 +135,40 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   phase de fin (test de non-fuite dédié) : en cours de manche, il révélerait à
   la fois des bulletins et des rôles.
 
+## Just One (fiche 5.3 — étape 2)
+
+- **Ressemblance entre indices** : la règle Levenshtein de la fiche (≤ 1 si ≤ 5
+  caractères, ≤ 2 sinon) est appliquée par paire avec la tolérance du plus long
+  des deux mots, et le regroupement est transitif (« soleil/soleils/solail »
+  tombent d'un bloc). Conséquence assumée de la règle : deux mots courts très
+  différents mais à 1 lettre d'écart (« mer »/« mur ») s'annulent aussi — c'est
+  la fiche. Un indice auto-annulé est **verrouillé** (pas de ré-autorisation
+  manuelle) ; les toggles manuels, eux, jouent dans les deux sens, dernier
+  gagne, et l'arbitre tranche les litiges en forçant la clôture.
+- **Indice ≈ mot mystère** : auto-annulé (règle officielle du jeu, implicite
+  dans la fiche — le serveur connaît le mot, autant l'appliquer).
+- **Indice modifiable** jusqu'à la clôture de l'écriture (comme les votes
+  Undercover) ; clôture anticipée quand tous les donneurs CONNECTÉS ont écrit.
+- **Aucun indice à la clôture** : la validation est sautée, devinette directe
+  (l'écran du devineur propose explicitement de tenter à l'aveugle ou passer).
+- **Arbitrage d'une réponse approximative** : la fiche ne prévoit pas de délai —
+  timer de 30 s ajouté ; s'il expire, la réponse est ACCEPTÉE (même esprit de
+  tolérance que les fautes de frappe pardonnées).
+- **« Réponse en direct » pour les donneurs** (fiche, phase devinette) :
+  interprétée comme l'affichage de la proposition à sa soumission, pas la frappe
+  en temps réel (hors modèle room:state, gain nul en présentiel).
+- **Manche annulée** (devineur absent > 60 s) : elle est consommée (la rotation
+  passe au devineur suivant, le total de manches ne bouge pas) — ni point ni
+  malus, tracée « ∅ » au récap.
+- **Barème de fin** : les paliers de la fiche (calibrés sur 8) sont appliqués en
+  proportion du nombre de manches choisi (parfait = 100 %, ≥ 85 % « Incroyable ! »,
+  ≥ 60 % « Waouh ! », ≥ 35 % « Pas mal », sinon « On réessaie ? »).
+- **Récap de soirée coopératif** : pas de points individuels (liste vide), le
+  score d'équipe vit dans le résumé (« Score d'équipe : 6/8 — Waouh ! »).
+- **Gel du devineur** : implémenté via pause/reprise des timers serveur
+  (nouveaux effets `timer:pause`/`timer:resume`), déclenché par le gateway sur
+  déconnexion/reconnexion du devineur.
+
 ## Paramétrage et configuration
 
 - **Défauts adaptatifs** : tant que le host ne touche à rien, la répartition des

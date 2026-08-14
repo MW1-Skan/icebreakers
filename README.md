@@ -9,7 +9,13 @@ contrôle repliable. Les joueurs rejoignent en scannant le QR avec leur PC : leu
 transite jamais vers un client non autorisé** — le serveur n'envoie que des
 projections par audience, garanties par des tests de non-fuite.
 
-Premier jeu disponible : **Undercover** 🕵️ (4 à 10 joueurs actifs, animateur exclu).
+Jeux disponibles (4 à 10 joueurs actifs, animateur exclu) :
+
+- **Undercover** 🕵️ — rôles cachés : civils, undercover, Mr. White. Manches
+  enchaînables (1–5) avec cumul, 1 à 3 tours de parole avant chaque vote.
+- **Just One** ☝️ — coopératif : un devineur, des indices d'un seul mot qui
+  s'annulent s'ils se ressemblent. 5 à 13 manches, arbitre de manche tournant
+  (mot injouable, litiges, réponses approximatives), mode doux.
 
 ## Démarrage
 
@@ -70,8 +76,8 @@ apps/server          NestJS + Socket.IO. Rooms en mémoire (Map<code, Room>),
                      timers serveur, chargeur de packs, moteurs de jeu =
                      réducteurs purs + projections par audience.
   src/games/         Un jeu = un module : réducteur (état + actions + effets),
-                     projections, tests. `engine.ts` définit l'interface
-                     commune GameEngine pour les jeux suivants.
+                     projections, tests. `undercover/` et `justone/` suivent
+                     le même patron — copier l'un des deux pour ajouter un jeu.
   src/rooms/         Salons, jetons de reconnexion, timers, projectFor.
   src/packs/         Chargement/validation des packs, anti-répétition.
 apps/web             Angular (standalone + signals). L'UI de chaque écran est
