@@ -1,0 +1,11 @@
+{
+  "siteName": "Icebreakers",
+  "internalModeLabel": "Interne",
+  "randomWeight": 0.5,
+  "timers": {
+    "discussSeconds": 60,
+    "voteSeconds": 45,
+    "whiteGuessSeconds": 30
+  },
+  "adminPassword": "change-me"
+}

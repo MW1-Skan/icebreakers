@@ -1,0 +1,21 @@
+{
+  "name": "retro-icebreakers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mini-jeux d'icebreaker pour rétrospectives d'équipe — multi-device, présentiel, TV",
+  "workspaces": [
+    "libs/shared",
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm -w apps/server run start:dev",
+    "dev:web": "npm -w apps/web run start",
+    "build": "npm -w apps/server run build && npm -w apps/web run build",
+    "test": "npm -w libs/shared run test && npm -w apps/server run test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
