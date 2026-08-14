@@ -81,6 +81,8 @@ export interface UndercoverState {
   /** À 2 tours blancs consécutifs, la TV suggère d'abandonner la manche. */
   suggestAbort: boolean;
   lastReveal?: UndercoverRevealOutcome;
+  /** Mr. White éliminé par vote : le prochain « continuer » ouvre sa phase de guess. */
+  pendingWhiteGuessFor?: PlayerId;
   whiteGuess?: UndercoverWhiteGuessState;
   eliminations: UndercoverElimination[];
   winner?: UndercoverWinner;
