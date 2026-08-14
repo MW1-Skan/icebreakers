@@ -9,13 +9,19 @@ contrôle repliable. Les joueurs rejoignent en scannant le QR avec leur PC : leu
 transite jamais vers un client non autorisé** — le serveur n'envoie que des
 projections par audience, garanties par des tests de non-fuite.
 
-Jeux disponibles (4 à 10 joueurs actifs, animateur exclu) :
+Jeux disponibles (joueurs actifs, animateur exclu) :
 
-- **Undercover** 🕵️ — rôles cachés : civils, undercover, Mr. White. Manches
-  enchaînables (1–5) avec cumul, 1 à 3 tours de parole avant chaque vote.
-- **Just One** ☝️ — coopératif : un devineur, des indices d'un seul mot qui
+- **Undercover** 🕵️ (4–10 j) — rôles cachés : civils, undercover, Mr. White.
+  Manches enchaînables (1–5) avec cumul, 1 à 3 tours de parole avant chaque vote.
+- **Just One** ☝️ (4–10 j, coop) — un devineur, des indices d'un seul mot qui
   s'annulent s'ils se ressemblent. 5 à 13 manches, arbitre de manche tournant
   (mot injouable, litiges, réponses approximatives), mode doux.
+- **Wavelength** 🌊 (3–10 j) — le télépathe voit une cible secrète sur un axe et
+  donne un indice ; chacun place SA cible en secret, points à la distance
+  (±5/±10/±15), télépathe à la moyenne. Rotation, podium, récap des indices.
+- **Ito** 🔢 (3–10 j, coop) — nombres secrets 1–100 à écart minimal garanti,
+  à poser dans l'ordre croissant en décrivant via le thème. Vies d'équipe,
+  défausse automatique sur erreur, verdict par vies restantes.
 
 ## Démarrage
 

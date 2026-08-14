@@ -211,18 +211,35 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ctx.room.status === 'inGame') {
       return { ok: false, error: { code: 'ALREADY_IN_GAME', message: 'Termine la partie en cours d’abord.' } };
     }
-    if (parsed.data.game === 'undercover') {
-      ctx.room.selection = {
-        game: 'undercover',
-        contentMode: parsed.data.contentMode,
-        paramOverrides: parsed.data.params,
-      };
-    } else {
-      ctx.room.selection = {
-        game: 'justone',
-        contentMode: parsed.data.contentMode,
-        paramOverrides: parsed.data.params,
-      };
+    switch (parsed.data.game) {
+      case 'undercover':
+        ctx.room.selection = {
+          game: 'undercover',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
+      case 'justone':
+        ctx.room.selection = {
+          game: 'justone',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
+      case 'wavelength':
+        ctx.room.selection = {
+          game: 'wavelength',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
+      case 'ito':
+        ctx.room.selection = {
+          game: 'ito',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
     }
     this.rooms.touch(ctx.room);
     this.broadcastRoom(ctx.room);

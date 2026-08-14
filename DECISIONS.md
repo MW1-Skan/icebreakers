@@ -169,6 +169,54 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   (nouveaux effets `timer:pause`/`timer:resume`), déclenché par le gateway sur
   déconnexion/reconnexion du devineur.
 
+## Wavelength (fiche 5.2 v3 — étape 3)
+
+- **Phases Tirage + Indice fusionnées** (`clue`) : écrans TV quasi identiques
+  dans la fiche, l'indice s'affiche dès sa saisie. Pas de timer sur cette phase
+  (la fiche n'en prévoit pas) — un télépathe AFK se gère par l'abandon host ou
+  la règle de déconnexion.
+- **Télépathe déconnecté avant l'indice** : manche annulée immédiatement
+  (fiche : « la cible est compromise »), **rejouée en fin de partie** — le
+  télépathe est repoussé en fin de file, UNE seule fois (anti-boucle si la
+  déconnexion persiste). Après l'indice : la manche continue (rôle passif).
+- **Règles d'indice vérifiées serveur (best-effort)** : chiffres interdits et
+  mots des pôles (correspondance normalisée tolérante) refusés à la saisie ;
+  traductions/périphrases relèvent de l'invalidation host (`invalidateClue`),
+  qui renvoie en saisie d'indice ET efface les curseurs déjà posés (ils
+  répondaient à un indice invalide). La cible ne change pas (fiche).
+- **Moyenne du télépathe** : arrondie, calculée sur les joueurs AYANT placé —
+  un déconnecté (0 pt pour lui) ne pénalise pas la note d'indice ; personne n'a
+  placé → 0.
+- **Clôture anticipée** du placement quand tous les placeurs CONNECTÉS ont
+  placé (cohérent avec Just One) ; sinon timeout 45 s.
+- **Roadmap §8 « curseurs temps réel, dial miroir »** : caduque depuis la v3
+  (placements individuels secrets) — seul le compteur « X/Y ont placé » est
+  temps réel. La fiche v3 fait foi.
+- **< 3 joueurs actifs** : bandeau TV (notice), sans gel dur des timers.
+
+## Ito (fiche 5.5 — étape 4)
+
+- **Phases Découverte + Expression fusionnées** (`play`) : « Je pose » est
+  disponible d'emblée, protégé par une **double confirmation** (interprétation
+  du « tap long / double-tap » anti-mispose de la fiche). Le « Changer de
+  thème » host reste verrouillé par la première pose, comme exigé.
+- **Tirage à écart garanti** : n valeurs distinctes tirées dans
+  1..(max − (n−1)(écart−1)) puis étalées — écart pair-à-pair ≥ g garanti,
+  réduit automatiquement au maximum faisable (bandeau « écart réduit à N »),
+  suggestion de repasser en 1–100 sous 4.
+- **Poses sérialisées** : l'event-loop du serveur ordonne les poses ; chacune
+  est évaluée dans l'état résultant de la précédente. Une carte défaussée par
+  l'erreur d'un autre rend toute pose ultérieure de son détenteur illégale
+  (message clair), pas de crash.
+- **Vies plancher à 0** : la partie continue jusqu'au bout (résultat défaite).
+- **« Libérer la carte »** branché sur le contrôle catalogue `removeFromRound`
+  (même geste host qu'Undercover, libellé UI dédié, sans coût de vie).
+- **Verdict générique** par ratio de vies (fiche calibrée sur 3) : 100 % =
+  « Télépathes ! », ≥ 50 % = « Accordés », > 0 = « Ric-rac », 0 =
+  « Désaccordés » (défaite).
+- **Pas de timers** : phases orales, poses pilotées par les joueurs, host en
+  arbitre du rythme.
+
 ## Paramétrage et configuration
 
 - **Défauts adaptatifs** : tant que le host ne touche à rien, la répartition des
