@@ -206,6 +206,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.games.backToLobby(ctx.room);
       return { ok: true };
     }
+    // Écran de fin d'une manche non finale : le serveur enchaîne la suivante
+    // (nouveau tirage — hors réducteur).
+    if (ctx.room.game?.phase === 'end') {
+      return this.games.nextManche(ctx.room);
+    }
     return this.games.dispatch(ctx.room, { type: 'HOST_NEXT' });
   }
 

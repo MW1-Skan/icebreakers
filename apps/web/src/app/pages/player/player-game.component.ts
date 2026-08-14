@@ -140,7 +140,10 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
                   </div>
                 }
                 @if (g.end; as end) {
-                  <app-end-reveal [end]="end" [players]="view().room.players" />
+                  @if (!end.isFinalManche) {
+                    <p class="hint muted">Manche {{ g.mancheIndex }}/{{ g.manchesTotal }} terminée — la suivante arrive ! 🔁</p>
+                  }
+                  <app-end-reveal [end]="end" [players]="view().room.players" [showCumulative]="g.manchesTotal > 1" />
                 }
               }
             }

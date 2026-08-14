@@ -17,6 +17,7 @@ import {
   initUndercover,
   reduceUndercover,
   resolveUndercoverParams,
+  undercoverManchePoints,
   validateUndercoverSetup,
 } from './undercover/undercover.engine';
 import type { GameEffect } from '../shared';
@@ -89,9 +90,69 @@ export class GamesService {
     return { ok: true };
   }
 
-  /** L'animateur abandonne la manche (suggestion après tours blancs, ou imprévu). */
+  /**
+   * Fin de manche non finale (host:next sur l'écran de fin) : nouveau tirage,
+   * mêmes paramètres, cumul des points transmis. L'effectif est re-validé
+   * (des joueurs ont pu partir ou arriver entre deux manches).
+   */
+  nextManche(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (room.status !== 'inGame' || !game || game.phase !== 'end') {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune manche à enchaîner.' } };
+    }
+    if (game.mancheIndex >= game.params.manchesCount) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'La série est terminée.' } };
+    }
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateUndercoverSetup(playerIds.length, game.params);
+    if (!setup.ok) {
+      return { ok: false, error: { code: setup.code, message: `${setup.message} Ajuste l’effectif ou abandonne la série.` } };
+    }
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+
+    const drawn = this.packs.drawUndercoverEntry(
+      room.selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+
+    const carriedPoints = { ...game.carriedPoints };
+    for (const { playerId, points } of undercoverManchePoints(game)) {
+      carriedPoints[playerId] = (carriedPoints[playerId] ?? 0) + points;
+    }
+
+    const { state, effects } = initUndercover(playerIds, drawn.entry, game.params, { rng: room.rng }, {
+      mancheIndex: game.mancheIndex + 1,
+      carriedPoints,
+    });
+    room.game = state;
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : manche ${state.mancheIndex}/${state.params.manchesCount}.`);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  /** L'animateur abandonne la manche/série (suggestion après tours blancs, ou imprévu). */
   abort(room: Room): void {
     this.timers.cancelAll(room.code);
+    // Une série écourtée garde une trace au récap si au moins une manche est finie.
+    const game = room.game;
+    if (game) {
+      const completedManches = game.mancheIndex - 1 + (game.phase === 'end' ? 1 : 0);
+      if (completedManches >= 1) {
+        const result = buildUndercoverResult(game, room.players, Date.now());
+        result.summary = `Série écourtée (${completedManches} manche${completedManches > 1 ? 's' : ''} jouée${completedManches > 1 ? 's' : ''}) — ${result.summary}`;
+        room.sessionRecap.push(result);
+      }
+    }
     room.game = undefined;
     room.status = 'lobby';
     this.rooms.touch(room);

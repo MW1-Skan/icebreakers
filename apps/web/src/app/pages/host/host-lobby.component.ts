@@ -48,6 +48,20 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
             }
           </select>
 
+          <label for="manches">Manches</label>
+          <select id="manches" name="manches" [ngModel]="params().manchesCount" (ngModelChange)="patch({ manchesCount: +$event })">
+            @for (n of [1, 2, 3, 4, 5]; track n) {
+              <option [value]="n">{{ n }}</option>
+            }
+          </select>
+
+          <label for="passes" title="Passes de description avant chaque vote">Tours de parole</label>
+          <select id="passes" name="passes" [ngModel]="params().describePasses" (ngModelChange)="patch({ describePasses: +$event })">
+            @for (n of [1, 2, 3]; track n) {
+              <option [value]="n">{{ n }}</option>
+            }
+          </select>
+
           <label for="uc">Undercover</label>
           <select id="uc" name="uc" [ngModel]="params().undercoverCount" (ngModelChange)="patch({ undercoverCount: +$event })">
             @for (n of [1, 2, 3]; track n) {
@@ -176,6 +190,8 @@ export class HostLobbyComponent {
         voteSeconds: 45,
         whiteGuessSeconds: 30,
         publicVotes: false,
+        manchesCount: 1,
+        describePasses: 1,
       }
     );
   });
@@ -219,6 +235,8 @@ export class HostLobbyComponent {
       discussSeconds: p.discussSeconds,
       voteSeconds: p.voteSeconds,
       publicVotes: p.publicVotes,
+      manchesCount: p.manchesCount,
+      describePasses: p.describePasses,
     };
   }
 

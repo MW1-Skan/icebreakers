@@ -65,7 +65,8 @@ function projectHostControls(room: Room, ctx: ProjectionCtx): HostControlsView {
   const inGame = room.status === 'inGame' && !!room.game;
   let canNext = false;
   if (inGame && room.game) {
-    canNext = guardUndercover(room.game, { type: 'HOST_NEXT' }).ok;
+    // Fin de manche non finale : « Manche suivante » (géré hors réducteur).
+    canNext = room.game.phase === 'end' || guardUndercover(room.game, { type: 'HOST_NEXT' }).ok;
   } else if (room.status === 'recap') {
     canNext = true; // retour au lobby
   }

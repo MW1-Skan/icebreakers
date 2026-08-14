@@ -19,6 +19,9 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       <div class="stage">
         <div class="phase-header">
           <h1 class="tv-title">{{ phaseTitle() }}</h1>
+          @if (g.manchesTotal > 1) {
+            <span class="round tag manche">Manche {{ g.mancheIndex }}/{{ g.manchesTotal }}</span>
+          }
           <span class="round tag">Tour {{ g.round }}</span>
           <app-timer-badge [timer]="view().room.timers[0]" [big]="true" />
         </div>
@@ -39,7 +42,12 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
             <p class="muted">✓ = a consulté son mot. L'animateur lance le tour de parole quand tout le monde est prêt.</p>
           }
           @case ('describe') {
-            <p class="instruction">À l'oral, dans l'ordre : décris ton mot en un mot ou une courte phrase.</p>
+            <p class="instruction">
+              À l'oral, dans l'ordre : décris ton mot en un mot ou une courte phrase.
+              @if (g.params.describePasses > 1) {
+                <span class="tag">Tour de parole {{ g.describePass }}/{{ g.params.describePasses }}</span>
+              }
+            </p>
             <ol class="speaking-order">
               @for (id of g.speakingOrder; track id; let i = $index) {
                 <li [class.current]="id === g.currentSpeakerId" [class.done]="i < currentSpeakerIndex()">
@@ -149,8 +157,10 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
           }
           @case ('end') {
             @if (g.end; as end) {
-              <app-end-reveal [end]="end" [players]="view().room.players" />
-              <app-recap-banner [recap]="view().room.recap" />
+              <app-end-reveal [end]="end" [players]="view().room.players" [showCumulative]="g.manchesTotal > 1" />
+              @if (end.isFinalManche) {
+                <app-recap-banner [recap]="view().room.recap" />
+              }
             }
           }
         }
@@ -327,8 +337,11 @@ export class HostGameComponent {
         return 'Révélation';
       case 'whiteGuess':
         return 'Mr. White tente sa chance…';
-      case 'end':
-        return 'Fin de partie';
+      case 'end': {
+        const g = this.game();
+        if (g && g.manchesTotal > 1 && !g.end?.isFinalManche) return `Fin de la manche ${g.mancheIndex}`;
+        return g && g.manchesTotal > 1 ? 'Fin de la série' : 'Fin de partie';
+      }
       default:
         return '';
     }

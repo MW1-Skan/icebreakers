@@ -128,13 +128,18 @@ export class ControlBarComponent {
         return 'Commencer le tour de parole';
       case 'describe': {
         const isLast = game.currentSpeakerId === game.speakingOrder[game.speakingOrder.length - 1];
-        return isLast ? 'Passer à la discussion' : 'Joueur suivant';
+        if (!isLast) return 'Joueur suivant';
+        return game.describePass < game.params.describePasses
+          ? `Tour de parole suivant (${game.describePass + 1}/${game.params.describePasses})`
+          : 'Passer à la discussion';
       }
       case 'discuss':
         return 'Passer au vote';
       case 'reveal':
       case 'whiteGuess':
         return 'Continuer';
+      case 'end':
+        return `Manche suivante (${game.mancheIndex + 1}/${game.manchesTotal})`;
       default:
         return 'Continuer';
     }
