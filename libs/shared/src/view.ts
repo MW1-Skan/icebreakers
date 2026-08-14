@@ -11,6 +11,10 @@ import type { WavelengthParams } from './wavelength/types';
 import type { WavelengthMeView, WavelengthPublicView } from './wavelength/view';
 import type { ItoParams } from './ito/types';
 import type { ItoMeView, ItoPublicView } from './ito/view';
+import type { SpyfallParams } from './spyfall/types';
+import type { SpyfallMeView, SpyfallPublicView } from './spyfall/view';
+import type { TabooParams } from './taboo/types';
+import type { TabooMeView, TabooPublicView } from './taboo/view';
 
 export interface TimerView {
   id: string;
@@ -36,19 +40,29 @@ export type RoomNotice =
   | { kind: 'hostDisconnected' } // pause auto (§3.4)
   | { kind: 'fewActivePlayers' }; // effectif connecté trop réduit (ex. Just One < 3)
 
-export type GamePublicView = UndercoverPublicView | JustOnePublicView | WavelengthPublicView | ItoPublicView;
+export type GamePublicView =
+  | UndercoverPublicView
+  | JustOnePublicView
+  | WavelengthPublicView
+  | ItoPublicView
+  | SpyfallPublicView
+  | TabooPublicView;
 export type GameMeView = {
   undercover?: UndercoverMeView;
   justone?: JustOneMeView;
   wavelength?: WavelengthMeView;
   ito?: ItoMeView;
+  spyfall?: SpyfallMeView;
+  taboo?: TabooMeView;
 };
 
 export type GameSelectionView =
   | { game: 'undercover'; contentMode: ContentMode; params: UndercoverParams }
   | { game: 'justone'; contentMode: ContentMode; params: JustOneParams }
   | { game: 'wavelength'; contentMode: ContentMode; params: WavelengthParams }
-  | { game: 'ito'; contentMode: ContentMode; params: ItoParams };
+  | { game: 'ito'; contentMode: ContentMode; params: ItoParams }
+  | { game: 'spyfall'; contentMode: ContentMode; params: SpyfallParams }
+  | { game: 'taboo'; contentMode: ContentMode; params: TabooParams };
 
 /** Projection publique du salon — strictement identique host / miroir / joueurs. */
 export interface RoomPublicView {

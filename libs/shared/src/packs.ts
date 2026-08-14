@@ -213,6 +213,10 @@ export type WavelengthPack = Extract<Pack, { game: 'wavelength' }>;
 export type WavelengthPackEntry = WavelengthPack['entries'][number];
 export type ItoPack = Extract<Pack, { game: 'ito' }>;
 export type ItoPackEntry = ItoPack['entries'][number];
+export type SpyfallPack = Extract<Pack, { game: 'spyfall' }>;
+export type SpyfallPackEntry = SpyfallPack['entries'][number];
+export type TabooPack = Extract<Pack, { game: 'taboo' }>;
+export type TabooPackEntry = TabooPack['entries'][number];
 
 /** Identifiant d'un élément de contenu : `packId#index` (§4.2, anti-répétition). */
 export function entryElementId(packId: string, index: number): string {

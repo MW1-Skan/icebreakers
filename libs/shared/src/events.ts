@@ -79,6 +79,21 @@ export const itoParamsSchema = z.object({
   minGap: z.number().int().min(2).max(20).optional(),
 });
 
+export const spyfallParamsSchema = z.object({
+  mancheSeconds: z.number().int().min(120).max(900).optional(),
+  manchesCount: z.number().int().min(1).max(3).optional(),
+  accusationVoteSeconds: z.number().int().min(15).max(120).optional(),
+  finalVoteSeconds: z.number().int().min(15).max(120).optional(),
+  spyGuessSeconds: z.number().int().min(15).max(120).optional(),
+});
+
+export const tabooParamsSchema = z.object({
+  passageSeconds: z.number().int().min(30).max(120).optional(),
+  passesPerTeam: z.number().int().min(1).max(3).optional(),
+  hardPass: z.boolean().optional(),
+  teams: z.array(z.array(z.string()).min(2).max(3)).min(2).max(5).optional(),
+});
+
 const contentModeSchema = z.enum(['interne', 'normal', 'random']);
 
 export const hostSelectGameSchema = z.discriminatedUnion('game', [
@@ -102,6 +117,16 @@ export const hostSelectGameSchema = z.discriminatedUnion('game', [
     contentMode: contentModeSchema,
     params: itoParamsSchema.default({}),
   }),
+  z.object({
+    game: z.literal('spyfall'),
+    contentMode: contentModeSchema,
+    params: spyfallParamsSchema.default({}),
+  }),
+  z.object({
+    game: z.literal('taboo'),
+    contentMode: contentModeSchema,
+    params: tabooParamsSchema.default({}),
+  }),
 ]);
 
 export const hostStartSchema = z.object({}).default({});
@@ -116,6 +141,7 @@ export const hostControlSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('abortRound') }),
   z.object({ type: z.literal('invalidateClue') }),
   z.object({ type: z.literal('changeTheme') }),
+  z.object({ type: z.literal('cancelBuzz'), countAsFound: z.boolean().default(false) }),
 ]);
 
 export const gameActionSchema = z.discriminatedUnion('type', [
@@ -140,6 +166,16 @@ export const gameActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('placeSlider'), value: z.number().int().min(0).max(100) }),
   // Ito
   z.object({ type: z.literal('playCard') }),
+  // Spyfall
+  z.object({ type: z.literal('accuse'), accusedId: z.string() }),
+  z.object({ type: z.literal('voteAccusation'), yes: z.boolean() }),
+  // sans carte = « Je me révèle » (fige le jeu) ; avec carte = le choix dans la grille
+  z.object({ type: z.literal('spyGuess'), card: z.string().trim().min(1).max(80).optional() }),
+  // Taboo — le numéro de carte sérialise buzz/trouvé (le premier reçu fait foi)
+  z.object({ type: z.literal('go') }),
+  z.object({ type: z.literal('found'), cardSeq: z.number().int() }),
+  z.object({ type: z.literal('passCard'), cardSeq: z.number().int() }),
+  z.object({ type: z.literal('buzz'), cardSeq: z.number().int() }),
 ]);
 
 export type RoomCreatePayload = z.infer<typeof roomCreateSchema>;

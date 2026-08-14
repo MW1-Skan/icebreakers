@@ -13,3 +13,7 @@ export * from './wavelength/types';
 export * from './wavelength/view';
 export * from './ito/types';
 export * from './ito/view';
+export * from './spyfall/types';
+export * from './spyfall/view';
+export * from './taboo/types';
+export * from './taboo/view';
