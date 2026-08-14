@@ -13,9 +13,11 @@
     "dev:server": "npm -w apps/server run start:dev",
     "dev:web": "npm -w apps/web run start",
     "build": "npm -w apps/server run build && npm -w apps/web run build",
-    "test": "npm -w libs/shared run test && npm -w apps/server run test"
+    "test": "npm -w libs/shared run test && npm -w apps/server run test",
+    "e2e": "npm run build && playwright test --config e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "concurrently": "^9.1.2"
   }
 }
