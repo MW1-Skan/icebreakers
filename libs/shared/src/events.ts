@@ -104,7 +104,8 @@ export type ErrorCode =
   | 'MRWHITE_MIN_PLAYERS'
   | 'BAD_ROLE_CONFIG'
   | 'NO_CONTENT'
-  | 'ALREADY_IN_GAME';
+  | 'ALREADY_IN_GAME'
+  | 'KICKED';
 
 export interface WsError {
   code: ErrorCode;
