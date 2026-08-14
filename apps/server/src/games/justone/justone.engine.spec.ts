@@ -126,6 +126,12 @@ describe('mot injouable', () => {
 // ─── Écriture des indices ───────────────────────────────────────────────────
 
 describe('écriture des indices', () => {
+  it('cas limite fiche : indice multi-mots refusé (sauf trait d’union)', () => {
+    const s = freshState();
+    expectDenied(s, { type: 'SUBMIT_CLUE', playerId: 'p2', text: 'deux mots' });
+    expect(guardJustOne(s, { type: 'SUBMIT_CLUE', playerId: 'p2', text: 'chauve-souris' }, ctx()).ok).toBe(true);
+  });
+
   it('le devineur n’écrit pas ; un donneur peut corriger son indice avant la clôture', () => {
     const s = freshState();
     expectDenied(s, { type: 'SUBMIT_CLUE', playerId: 'p1', text: 'triche' });

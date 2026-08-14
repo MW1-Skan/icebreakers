@@ -66,6 +66,19 @@ export const justoneParamsSchema = z.object({
   softPenalty: z.boolean().optional(),
 });
 
+export const wavelengthParamsSchema = z.object({
+  manchesCount: z.number().int().min(1).max(10).optional(),
+  placeSeconds: z.number().int().min(15).max(180).optional(),
+  zoneWidth: z.number().int().min(3).max(10).optional(),
+});
+
+export const itoParamsSchema = z.object({
+  manchesCount: z.number().int().min(1).max(5).optional(),
+  livesCount: z.number().int().min(1).max(5).optional(),
+  rangeMax: z.number().int().min(20).max(100).optional(),
+  minGap: z.number().int().min(2).max(20).optional(),
+});
+
 const contentModeSchema = z.enum(['interne', 'normal', 'random']);
 
 export const hostSelectGameSchema = z.discriminatedUnion('game', [
@@ -79,6 +92,16 @@ export const hostSelectGameSchema = z.discriminatedUnion('game', [
     contentMode: contentModeSchema,
     params: justoneParamsSchema.default({}),
   }),
+  z.object({
+    game: z.literal('wavelength'),
+    contentMode: contentModeSchema,
+    params: wavelengthParamsSchema.default({}),
+  }),
+  z.object({
+    game: z.literal('ito'),
+    contentMode: contentModeSchema,
+    params: itoParamsSchema.default({}),
+  }),
 ]);
 
 export const hostStartSchema = z.object({}).default({});
@@ -91,6 +114,8 @@ export const hostControlSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('removeFromRound'), playerId: z.string() }),
   z.object({ type: z.literal('kick'), playerId: z.string() }),
   z.object({ type: z.literal('abortRound') }),
+  z.object({ type: z.literal('invalidateClue') }),
+  z.object({ type: z.literal('changeTheme') }),
 ]);
 
 export const gameActionSchema = z.discriminatedUnion('type', [
@@ -98,15 +123,11 @@ export const gameActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('seenWord') }),
   z.object({ type: z.literal('vote'), target: z.union([z.string(), z.literal('blank')]) }),
   z.object({ type: z.literal('guess'), guess: z.string().trim().min(1).max(60) }),
-  // Just One
+  // Just One + Wavelength (la règle « un seul mot » de Just One est vérifiée
+  // par la garde du moteur — l'indice Wavelength admet une courte expression)
   z.object({
     type: z.literal('clue'),
-    text: z
-      .string()
-      .trim()
-      .min(1, 'Ton indice est vide.')
-      .max(30, '30 caractères maximum.')
-      .regex(/^\S+$/, 'Un seul mot (les traits d’union sont admis).'),
+    text: z.string().trim().min(1, 'Ton indice est vide.').max(60, '60 caractères maximum.'),
   }),
   z.object({ type: z.literal('flagClue'), giverId: z.string(), cancelled: z.boolean() }),
   z.object({ type: z.literal('ready') }),
@@ -115,6 +136,10 @@ export const gameActionSchema = z.discriminatedUnion('type', [
     type: z.literal('arbitrate'),
     decision: z.enum(['unplayable', 'accept', 'reject', 'forceClose']),
   }),
+  // Wavelength
+  z.object({ type: z.literal('placeSlider'), value: z.number().int().min(0).max(100) }),
+  // Ito
+  z.object({ type: z.literal('playCard') }),
 ]);
 
 export type RoomCreatePayload = z.infer<typeof roomCreateSchema>;

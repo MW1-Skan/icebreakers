@@ -216,6 +216,10 @@ export function guardJustOne(state: JustOneState, action: JustOneAction, ctx: En
     case 'SUBMIT_CLUE':
       if (state.phase !== 'write') return deny('La phase d’écriture est terminée.');
       if (!isGiver(action.playerId)) return deny('Le devineur n’écrit pas d’indice.');
+      // Un seul mot (traits d'union admis) — le schéma partagé est plus permissif
+      // car l'indice Wavelength, lui, accepte une courte expression.
+      if (/\s/.test(action.text.trim())) return deny('Un seul mot (les traits d’union sont admis).');
+      if (action.text.trim().length > 30) return deny('30 caractères maximum.');
       return { ok: true };
 
     case 'FLAG_CLUE': {

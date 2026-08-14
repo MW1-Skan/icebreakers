@@ -7,6 +7,10 @@ import type { UndercoverParams } from './undercover/types';
 import type { UndercoverMeView, UndercoverPublicView } from './undercover/view';
 import type { JustOneParams } from './justone/types';
 import type { JustOneMeView, JustOnePublicView } from './justone/view';
+import type { WavelengthParams } from './wavelength/types';
+import type { WavelengthMeView, WavelengthPublicView } from './wavelength/view';
+import type { ItoParams } from './ito/types';
+import type { ItoMeView, ItoPublicView } from './ito/view';
 
 export interface TimerView {
   id: string;
@@ -32,12 +36,19 @@ export type RoomNotice =
   | { kind: 'hostDisconnected' } // pause auto (§3.4)
   | { kind: 'fewActivePlayers' }; // effectif connecté trop réduit (ex. Just One < 3)
 
-export type GamePublicView = UndercoverPublicView | JustOnePublicView;
-export type GameMeView = { undercover?: UndercoverMeView; justone?: JustOneMeView };
+export type GamePublicView = UndercoverPublicView | JustOnePublicView | WavelengthPublicView | ItoPublicView;
+export type GameMeView = {
+  undercover?: UndercoverMeView;
+  justone?: JustOneMeView;
+  wavelength?: WavelengthMeView;
+  ito?: ItoMeView;
+};
 
 export type GameSelectionView =
   | { game: 'undercover'; contentMode: ContentMode; params: UndercoverParams }
-  | { game: 'justone'; contentMode: ContentMode; params: JustOneParams };
+  | { game: 'justone'; contentMode: ContentMode; params: JustOneParams }
+  | { game: 'wavelength'; contentMode: ContentMode; params: WavelengthParams }
+  | { game: 'ito'; contentMode: ContentMode; params: ItoParams };
 
 /** Projection publique du salon — strictement identique host / miroir / joueurs. */
 export interface RoomPublicView {
