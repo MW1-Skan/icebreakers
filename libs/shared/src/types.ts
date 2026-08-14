@@ -8,6 +8,8 @@ export interface Player {
   avatar: string; // emoji
   connected: boolean;
   joinedAt: number;
+  /** Epoch ms de la dernière déconnexion (sablier TV + seuil des 60 s, §3.4). */
+  disconnectedAt?: number;
 }
 
 /**
