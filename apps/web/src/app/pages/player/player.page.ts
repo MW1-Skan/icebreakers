@@ -8,6 +8,8 @@ import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
 import { ItoPlayerComponent } from './ito-player.component';
 import { JustOnePlayerComponent } from './justone-player.component';
+import { SpyfallPlayerComponent } from './spyfall-player.component';
+import { TabooPlayerComponent } from './taboo-player.component';
 import { UndercoverPlayerComponent } from './undercover-player.component';
 import { WavelengthPlayerComponent } from './wavelength-player.component';
 import { PlayersGridComponent } from '../../components/players-grid.component';
@@ -19,6 +21,8 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
     RouterLink,
     ItoPlayerComponent,
     JustOnePlayerComponent,
+    SpyfallPlayerComponent,
+    TabooPlayerComponent,
     UndercoverPlayerComponent,
     WavelengthPlayerComponent,
     PlayersGridComponent,
@@ -73,6 +77,12 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
               }
               @case ('ito') {
                 <app-ito-player [view]="v" />
+              }
+              @case ('spyfall') {
+                <app-spyfall-player [view]="v" />
+              }
+              @case ('taboo') {
+                <app-taboo-player [view]="v" />
               }
             }
           }

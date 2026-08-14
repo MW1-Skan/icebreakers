@@ -10,6 +10,8 @@ import { ControlBarComponent } from './control-bar.component';
 import { HostLobbyComponent } from './host-lobby.component';
 import { ItoHostComponent } from './ito-host.component';
 import { JustOneHostComponent } from './justone-host.component';
+import { SpyfallHostComponent } from './spyfall-host.component';
+import { TabooHostComponent } from './taboo-host.component';
 import { UndercoverHostComponent } from './undercover-host.component';
 import { WavelengthHostComponent } from './wavelength-host.component';
 
@@ -21,6 +23,8 @@ import { WavelengthHostComponent } from './wavelength-host.component';
     HostLobbyComponent,
     ItoHostComponent,
     JustOneHostComponent,
+    SpyfallHostComponent,
+    TabooHostComponent,
     UndercoverHostComponent,
     WavelengthHostComponent,
   ],
@@ -56,6 +60,12 @@ import { WavelengthHostComponent } from './wavelength-host.component';
             }
             @case ('ito') {
               <app-ito-host [view]="v" />
+            }
+            @case ('spyfall') {
+              <app-spyfall-host [view]="v" />
+            }
+            @case ('taboo') {
+              <app-taboo-host [view]="v" />
             }
             @default {
               <app-host-lobby [view]="v" />

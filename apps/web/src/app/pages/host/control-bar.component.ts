@@ -36,6 +36,10 @@ import { SocketService } from '../../core/socket.service';
           @if (showChangeTheme()) {
             <button (click)="changeTheme()">🎲 Changer de thème</button>
           }
+          @if (showCancelBuzz()) {
+            <button (click)="cancelBuzz(false)">🔕 Annuler le buzz</button>
+            <button (click)="cancelBuzz(true)">🔕✓ Annuler + compter trouvé</button>
+          }
 
           @if ((controls()?.removableIds ?? []).length > 0) {
             <details class="menu">
@@ -152,6 +156,21 @@ export class ControlBarComponent {
       }
       return 'Continuer';
     }
+    if (game.kind === 'spyfall') {
+      if (game.phase === 'brief') return 'Lancer l’interrogatoire';
+      if (game.phase === 'reveal') {
+        return game.mancheIndex < game.manchesTotal
+          ? `Manche suivante (${game.mancheIndex + 1}/${game.manchesTotal})`
+          : 'Voir la fin';
+      }
+      return 'Continuer';
+    }
+    if (game.kind === 'taboo') {
+      if (game.phase === 'recap') {
+        return game.upcoming.length > 0 ? 'Passage suivant' : 'Continuer';
+      }
+      return 'Continuer';
+    }
     switch (game.phase) {
       case 'distribute':
         return 'Commencer le tour de parole';
@@ -187,6 +206,15 @@ export class ControlBarComponent {
   showChangeTheme(): boolean {
     const game = this.view().room.game;
     return game?.kind === 'ito' && game.phase === 'play' && !game.themeLocked;
+  }
+
+  showCancelBuzz(): boolean {
+    const game = this.view().room.game;
+    return game?.kind === 'taboo' && !!game.lastBuzz && (game.phase === 'live' || game.phase === 'recap');
+  }
+
+  cancelBuzz(countAsFound: boolean): void {
+    void this.socket.control({ type: 'cancelBuzz', countAsFound });
   }
 
   removeMenuLabel(): string {

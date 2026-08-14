@@ -18,6 +18,8 @@ import type {
   JustOneParams,
   RoomCreateAck,
   RoomJoinAck,
+  SpyfallParams,
+  TabooParams,
   UndercoverParams,
   WavelengthParams,
   WsError,
@@ -88,9 +90,15 @@ export class SocketService {
   }
 
   selectGame(
-    game: Extract<GameId, 'undercover' | 'justone' | 'wavelength' | 'ito'>,
+    game: GameId,
     contentMode: ContentMode,
-    params: Partial<UndercoverParams> | Partial<JustOneParams> | Partial<WavelengthParams> | Partial<ItoParams>,
+    params:
+      | Partial<UndercoverParams>
+      | Partial<JustOneParams>
+      | Partial<WavelengthParams>
+      | Partial<ItoParams>
+      | Partial<SpyfallParams>
+      | Partial<TabooParams>,
   ): Promise<ActionAck> {
     return this.emitAck<ActionAck>(EVENTS.hostSelectGame, { game, contentMode, params });
   }
