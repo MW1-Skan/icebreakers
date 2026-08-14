@@ -54,6 +54,8 @@ export const undercoverParamsSchema = z.object({
   voteSeconds: z.number().int().min(10).max(300).optional(),
   whiteGuessSeconds: z.number().int().min(10).max(120).optional(),
   publicVotes: z.boolean().optional(),
+  manchesCount: z.number().int().min(1).max(5).optional(),
+  describePasses: z.number().int().min(1).max(3).optional(),
 });
 
 export const hostSelectGameSchema = z.object({

@@ -17,7 +17,8 @@ import {
   initUndercover,
   reduceUndercover,
   resolveUndercoverParams,
-  undercoverPoints,
+  undercoverCumulativePoints,
+  undercoverManchePoints,
   validateUndercoverSetup,
   voteOptionsFor,
   wordFor,
@@ -37,6 +38,8 @@ function params(overrides: Partial<UndercoverParams> = {}): UndercoverParams {
     voteSeconds: 45,
     whiteGuessSeconds: 30,
     publicVotes: false,
+    manchesCount: 1,
+    describePasses: 1,
     ...overrides,
   };
 }
@@ -51,6 +54,10 @@ function state4(overrides: Partial<UndercoverState> = {}): UndercoverState {
     kind: 'undercover',
     phase: 'vote',
     params: params(),
+    mancheIndex: 1,
+    carriedPoints: {},
+    goodVoterIds: [],
+    describePass: 1,
     playerIds: ids(4),
     pair: { a: 'MOTCIVIL', b: 'MOTUNDER' },
     civilianWord: 'a',
@@ -547,34 +554,39 @@ describe('conditions de fin et points', () => {
 
     const end = dispatch(after, { type: 'HOST_NEXT' }).state;
     expect(end.phase).toBe('end');
-    // barème : undercover vainqueur 5 pts (vivant) ; civils et White éliminés 0
-    const points = Object.fromEntries(undercoverPoints(end).map((p) => [p.playerId, p.points]));
-    expect(points.p4).toBe(5);
+    // barème révisé : undercover vainqueur 3 pts (vivant) ; civils et White éliminés 0
+    const points = Object.fromEntries(undercoverManchePoints(end).map((p) => [p.playerId, p.points]));
+    expect(points.p4).toBe(3);
     expect(points.p1).toBe(0);
   });
 
-  it('tous les infiltrés éliminés → civils 2 pts chacun', () => {
+  it('civils vainqueurs : 2 pts chacun + 1 pt bonus pour ceux qui ont visé un infiltré', () => {
     let s = state4();
     for (const [voter, target] of [
       ['p1', 'p4'],
       ['p2', 'p4'],
-      ['p3', 'p4'],
+      ['p3', 'blank'], // p3 n'a pas voté (timeout) → pas de bonus
       ['p4', 'p1'],
     ] as const) {
       s = dispatch(s, { type: 'CAST_VOTE', playerId: voter, target }).state;
     }
     const end = dispatch(s, { type: 'HOST_NEXT' }).state;
     expect(end.phase).toBe('end');
-    const points = Object.fromEntries(undercoverPoints(end).map((p) => [p.playerId, p.points]));
-    expect(points).toEqual({ p1: 2, p2: 2, p3: 2, p4: 0 });
+    const rows = undercoverManchePoints(end);
+    const byId = Object.fromEntries(rows.map((p) => [p.playerId, p]));
+    expect(byId.p1).toMatchObject({ points: 3, goodVote: true });
+    expect(byId.p2).toMatchObject({ points: 3, goodVote: true });
+    expect(byId.p3).toMatchObject({ points: 2, goodVote: false });
+    // l'undercover ne touche jamais le bonus des civils, même s'il a « bien » voté
+    expect(byId.p4).toMatchObject({ points: 0, goodVote: false });
   });
 
-  it('Mr. White vainqueur : 8 pts, personne d’autre', () => {
+  it('Mr. White vainqueur : 4 pts, personne d’autre', () => {
     const s = state5({ phase: 'whiteGuess', whiteGuess: { playerId: 'p5', resolved: false }, alive: ['p1', 'p2', 'p3', 'p4'] });
     const resolved = dispatch(s, { type: 'SUBMIT_GUESS', playerId: 'p5', guess: 'MOTCIVIL' }).state;
     const end = dispatch(resolved, { type: 'HOST_NEXT' }).state;
-    const points = Object.fromEntries(undercoverPoints(end).map((p) => [p.playerId, p.points]));
-    expect(points).toEqual({ p1: 0, p2: 0, p3: 0, p4: 0, p5: 8 });
+    const points = Object.fromEntries(undercoverManchePoints(end).map((p) => [p.playerId, p.points]));
+    expect(points).toEqual({ p1: 0, p2: 0, p3: 0, p4: 0, p5: 4 });
   });
 
   it('buildUndercoverResult produit le récap avec noms et résumé', () => {
@@ -591,6 +603,153 @@ describe('conditions de fin et points', () => {
     const players = ids(4).map((id, i) => ({ id, name: `Joueur${i + 1}`, avatar: '🦊', connected: true, joinedAt: 0 }));
     const result = buildUndercoverResult(end, players, 123);
     expect(result.summary).toBe('Victoire des civils');
-    expect(result.points.find((p) => p.playerId === 'p1')).toMatchObject({ name: 'Joueur1', points: 2 });
+    expect(result.points.find((p) => p.playerId === 'p1')).toMatchObject({ name: 'Joueur1', points: 3 });
+  });
+});
+
+// ─── Bonus de « bon vote » : suivi équitable des dépouillements ─────────────
+
+describe('suivi des bons votes', () => {
+  it('viser un infiltré compte même si le groupe ne suit pas (élimination d’un civil)', () => {
+    let s = state5();
+    for (const [voter, target] of [
+      ['p1', 'p2'],
+      ['p2', 'p1'],
+      ['p3', 'p1'],
+      ['p4', 'p1'],
+      ['p5', 'p4'], // White vise l'undercover — enregistré, mais pas civil : jamais de bonus
+    ] as const) {
+      s = dispatch(s, { type: 'CAST_VOTE', playerId: voter, target }).state;
+    }
+    // p1 (civil) éliminé ; personne n'a visé d'infiltré côté civils
+    expect(s.lastReveal?.eliminated?.playerId).toBe('p1');
+    expect(s.goodVoterIds).toEqual(['p5']);
+  });
+
+  it('le dépouillement qui déclenche un re-vote compte aussi', () => {
+    let s = state4();
+    // égalité p3/p4 : p1 et p2 avaient visé p4 (undercover) dès le premier vote
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p4' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'p4' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p3', target: 'p1' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p4', target: 'p1' }).state;
+    expect(s.revoteCandidates).toBeDefined();
+    expect(new Set(s.goodVoterIds)).toEqual(new Set(['p1', 'p2']));
+
+    // au re-vote, p3 se rallie : lui aussi est marqué (sans doublonner p1/p2)
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p4' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'p4' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p3', target: 'p4' }).state;
+    const { state: after } = dispatch(s, { type: 'CAST_VOTE', playerId: 'p4', target: 'p1' });
+    expect(after.lastReveal?.eliminated?.playerId).toBe('p4');
+    expect(new Set(after.goodVoterIds)).toEqual(new Set(['p1', 'p2', 'p3']));
+  });
+
+  it('votes blancs et votes contre un civil ne comptent pas', () => {
+    let s = state4();
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p1', target: 'p2' }).state;
+    s = dispatch(s, { type: 'CAST_VOTE', playerId: 'p2', target: 'blank' }).state;
+    const { state: after } = dispatch(s, { type: 'TIMEOUT', timerId: 'vote' });
+    expect(after.goodVoterIds).toEqual([]);
+  });
+});
+
+// ─── Passes de description multiples (1 par défaut, jusqu'à 3) ──────────────
+
+describe('tours de parole multiples', () => {
+  it('avec describePasses=2, l’ordre est parcouru deux fois avant la discussion', () => {
+    let s = state4({ phase: 'distribute', params: params({ describePasses: 2 }) });
+    s = dispatch(s, { type: 'HOST_NEXT' }).state; // → describe, passe 1
+    expect(s.describePass).toBe(1);
+    for (let i = 0; i < 3; i++) s = dispatch(s, { type: 'HOST_NEXT' }).state;
+    expect(s.turnIndex).toBe(3);
+
+    s = dispatch(s, { type: 'HOST_NEXT' }).state; // fin de passe 1 → passe 2
+    expect(s.phase).toBe('describe');
+    expect(s.describePass).toBe(2);
+    expect(s.turnIndex).toBe(0);
+    expect(s.speakingOrder).toEqual(ids(4)); // même ordre, White jamais premier reste garanti
+
+    for (let i = 0; i < 3; i++) s = dispatch(s, { type: 'HOST_NEXT' }).state;
+    const { state: after, effects } = dispatch(s, { type: 'HOST_NEXT' });
+    expect(after.phase).toBe('discuss');
+    expect(effects).toContainEqual({ type: 'timer:start', id: 'discuss', seconds: 60 });
+  });
+
+  it('un nouveau tour repart en passe 1', () => {
+    let s = state4({ phase: 'reveal', params: params({ describePasses: 3 }), describePass: 3, lastReveal: { kind: 'tie-noelim', tally: [], blankCount: 0 } });
+    const next = dispatch(s, { type: 'HOST_NEXT' }).state;
+    expect(next.phase).toBe('describe');
+    expect(next.describePass).toBe(1);
+  });
+});
+
+// ─── Manches enchaînées avec cumul ──────────────────────────────────────────
+
+describe('manches multiples', () => {
+  function finishManche(s: UndercoverState): { state: UndercoverState; effects: ReduceResult<UndercoverState>['effects'] } {
+    let cur = s;
+    for (const [voter, target] of [
+      ['p1', 'p4'],
+      ['p2', 'p4'],
+      ['p3', 'p4'],
+      ['p4', 'p1'],
+    ] as const) {
+      cur = dispatch(cur, { type: 'CAST_VOTE', playerId: voter, target }).state;
+    }
+    return dispatch(cur, { type: 'HOST_NEXT' });
+  }
+
+  it('fin de manche non finale → événement mancheEnded, PAS game:ended', () => {
+    const { state, effects } = finishManche(state4({ params: params({ manchesCount: 3 }) }));
+    expect(state.phase).toBe('end');
+    expect(effects.some((e) => e.type === 'game:ended')).toBe(false);
+    expect(effects).toContainEqual({
+      type: 'game:event',
+      name: 'mancheEnded',
+      payload: { winner: 'civilians', mancheIndex: 1 },
+    });
+  });
+
+  it('fin de la dernière manche → game:ended (fin de série)', () => {
+    const { effects } = finishManche(state4({ params: params({ manchesCount: 2 }), mancheIndex: 2 }));
+    expect(effects).toContainEqual({ type: 'game:ended', winner: 'civilians' });
+  });
+
+  it('le cumul additionne les manches précédentes et trie décroissant', () => {
+    const { state } = finishManche(
+      state4({ params: params({ manchesCount: 2 }), mancheIndex: 2, carriedPoints: { p4: 3, p1: 1 } }),
+    );
+    // manche 2 : civils gagnent — p1..p3 ont visé p4 → 3 pts chacun
+    const cumul = undercoverCumulativePoints(state);
+    expect(cumul[0]).toEqual({ playerId: 'p1', points: 4 });
+    expect(cumul.find((c) => c.playerId === 'p4')).toEqual({ playerId: 'p4', points: 3 });
+    expect(cumul.find((c) => c.playerId === 'p2')).toEqual({ playerId: 'p2', points: 3 });
+  });
+
+  it('initUndercover repart propre en manche suivante (cumul transmis, bons votes remis à zéro)', () => {
+    const { state } = initUndercover(
+      ids(4),
+      { a: 'X', b: 'Y' },
+      params({ manchesCount: 3 }),
+      ctx(9),
+      { mancheIndex: 2, carriedPoints: { p1: 3 } },
+    );
+    expect(state.mancheIndex).toBe(2);
+    expect(state.carriedPoints).toEqual({ p1: 3 });
+    expect(state.goodVoterIds).toEqual([]);
+    expect(state.round).toBe(1);
+    expect(state.describePass).toBe(1);
+  });
+
+  it('résumé de série : « en tête » avec le cumul', () => {
+    const { state } = finishManche(
+      state4({ params: params({ manchesCount: 2 }), mancheIndex: 2, carriedPoints: { p1: 2 } }),
+    );
+    const players = ids(4).map((id, i) => ({ id, name: `Joueur${i + 1}`, avatar: '🦊', connected: true, joinedAt: 0 }));
+    const result = buildUndercoverResult(state, players, 0);
+    expect(result.summary).toContain('2 manches');
+    expect(result.summary).toContain('Joueur1');
+    expect(result.points.find((p) => p.playerId === 'p1')?.points).toBe(5);
   });
 });

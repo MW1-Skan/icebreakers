@@ -85,6 +85,8 @@ function baseState(): UndercoverState {
       voteSeconds: 45,
       whiteGuessSeconds: 30,
       publicVotes: false,
+      manchesCount: 1,
+      describePasses: 1,
     },
     { rng: mulberry32(1) },
   );
@@ -232,7 +234,18 @@ function roleLeaks(json: Json, aliveIds: PlayerId[], roles: Record<PlayerId, str
 }
 
 /** Clés structurellement interdites dans toute projection (état brut). */
-const BANNED_KEYS = ['pair', 'civilianWord', 'roles', 'votes', 'token', 'playerTokens', 'usedEntryIds'];
+const BANNED_KEYS = [
+  'pair',
+  'civilianWord',
+  'roles',
+  'votes',
+  'token',
+  'playerTokens',
+  'usedEntryIds',
+  // suivi du bonus et cumul bruts : seuls goodVote/cumulative dérivés sortent, en phase end
+  'goodVoterIds',
+  'carriedPoints',
+];
 // En phase end, la révélation complète est publique par spec (fiche 5.1 étape 10).
 const ALLOWED_BANNED_KEY_PATHS = [/^room\.game\.end\.roles$/, /^room\.game\.end\.words\.civilianWord$/];
 
@@ -382,6 +395,29 @@ describe('non-fuite — cas particuliers', () => {
     expect(view.room.game?.end?.words).toEqual({ a: CIVIL_WORD, b: UNDER_WORD, civilianWord: 'a' });
     expect(view.room.game?.end?.roles).toHaveLength(5);
     expect(view.room.game?.end?.winner).toBe('civilians');
+  });
+
+  it('le suivi des « bons votes » ne fuit jamais avant la fin de manche', () => {
+    // p1 a visé p4 (undercover) au premier dépouillement : marqué côté état…
+    const state = atReveal();
+    expect(state.goodVoterIds).toContain('p1');
+    const room = makeRoom(state);
+    for (const viewer of [{ kind: 'host' }, { kind: 'mirror' }, { kind: 'player', playerId: 'p1' }, { kind: 'player', playerId: 'p2' }] as Viewer[]) {
+      const { text } = serialize(projectFor(room, viewer, PCTX));
+      // …mais aucune projection ne porte ni la clé brute ni un flag dérivé.
+      expect(text).not.toContain('goodVote');
+    }
+  });
+
+  it('en phase end, les points portent le flag « bon vote » et le cumul est public', () => {
+    const state = atEnd();
+    const view = projectFor(makeRoom(state, 'recap'), { kind: 'mirror' }, PCTX);
+    const end = view.room.game?.end;
+    expect(end?.isFinalManche).toBe(true);
+    expect(end?.cumulative?.length).toBe(5);
+    const p1 = end?.points.find((p) => p.playerId === 'p1');
+    expect(p1?.goodVote).toBe(true); // p1 a visé White puis l'undercover
+    expect(p1?.points).toBe(3);
   });
 
   it('un spectateur arrivé en cours de partie (hors partie) ne reçoit aucun secret', () => {

@@ -4,7 +4,12 @@
  * de fin. La vue `me` porte uniquement le secret du joueur destinataire.
  */
 import type { PlayerId, UndercoverMeView, UndercoverPublicView, UndercoverState } from '../../shared';
-import { undercoverPoints, voteOptionsFor, wordFor } from './undercover.engine';
+import {
+  undercoverCumulativePoints,
+  undercoverManchePoints,
+  voteOptionsFor,
+  wordFor,
+} from './undercover.engine';
 
 export function projectUndercoverPublic(state: UndercoverState): UndercoverPublicView {
   const isEnd = state.phase === 'end';
@@ -12,6 +17,9 @@ export function projectUndercoverPublic(state: UndercoverState): UndercoverPubli
     kind: 'undercover',
     phase: state.phase,
     round: state.round,
+    mancheIndex: state.mancheIndex,
+    manchesTotal: state.params.manchesCount,
+    describePass: state.describePass,
     aliveIds: [...state.alive],
     speakingOrder: [...state.speakingOrder],
     currentSpeakerId: state.phase === 'describe' ? state.speakingOrder[state.turnIndex] : undefined,
@@ -39,7 +47,9 @@ export function projectUndercoverPublic(state: UndercoverState): UndercoverPubli
             role: state.roles[playerId],
             word: wordFor(state, playerId),
           })),
-          points: undercoverPoints(state),
+          points: undercoverManchePoints(state),
+          cumulative: undercoverCumulativePoints(state),
+          isFinalManche: state.mancheIndex >= state.params.manchesCount,
         }
       : undefined,
     params: {
@@ -48,6 +58,8 @@ export function projectUndercoverPublic(state: UndercoverState): UndercoverPubli
       discussSeconds: state.params.discussSeconds,
       voteSeconds: state.params.voteSeconds,
       publicVotes: state.params.publicVotes,
+      manchesCount: state.params.manchesCount,
+      describePasses: state.params.describePasses,
     },
   };
 }

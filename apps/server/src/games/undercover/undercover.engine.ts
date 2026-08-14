@@ -55,6 +55,8 @@ export function resolveUndercoverParams(
     voteSeconds: partial.voteSeconds ?? defaults.voteSeconds,
     whiteGuessSeconds: partial.whiteGuessSeconds ?? defaults.whiteGuessSeconds,
     publicVotes: partial.publicVotes ?? false,
+    manchesCount: partial.manchesCount ?? 1,
+    describePasses: partial.describePasses ?? 1,
   };
 }
 
@@ -116,11 +118,18 @@ function drawSpeakingOrder(
   return order;
 }
 
+export interface UndercoverMancheContext {
+  /** Manche 1 par défaut ; les manches suivantes portent le cumul précédent. */
+  mancheIndex?: number;
+  carriedPoints?: Record<PlayerId, number>;
+}
+
 export function initUndercover(
   playerIds: PlayerId[],
   entry: { a: string; b: string },
   params: UndercoverParams,
   ctx: EngineCtx,
+  manche: UndercoverMancheContext = {},
 ): ReduceResult<UndercoverState> {
   const civilianWord: 'a' | 'b' = ctx.rng() < 0.5 ? 'a' : 'b';
   const shuffledIds = shuffled(playerIds, ctx.rng);
@@ -131,10 +140,15 @@ export function initUndercover(
     else roles[id] = 'civilian';
   });
 
+  const mancheIndex = manche.mancheIndex ?? 1;
   const state: UndercoverState = {
     kind: 'undercover',
     phase: 'distribute',
     params,
+    mancheIndex,
+    carriedPoints: { ...(manche.carriedPoints ?? {}) },
+    goodVoterIds: [],
+    describePass: 1,
     playerIds: [...playerIds],
     pair: { a: entry.a, b: entry.b },
     civilianWord,
@@ -149,7 +163,10 @@ export function initUndercover(
     suggestAbort: false,
     eliminations: [],
   };
-  return { state, effects: [{ type: 'game:event', name: 'gameStarted' }] };
+  return {
+    state,
+    effects: [{ type: 'game:event', name: mancheIndex === 1 ? 'gameStarted' : 'mancheStarted', payload: { mancheIndex } }],
+  };
 }
 
 // ─── Sélecteurs ─────────────────────────────────────────────────────────────
@@ -304,6 +321,13 @@ function hostNext(state: UndercoverState, ctx: EngineCtx): ReduceResult<Undercov
       if (state.turnIndex < state.speakingOrder.length - 1) {
         return { state: { ...state, turnIndex: state.turnIndex + 1 }, effects: [] };
       }
+      // Fin d'une passe : passe suivante (même ordre) ou discussion.
+      if (state.describePass < state.params.describePasses) {
+        return {
+          state: { ...state, describePass: state.describePass + 1, turnIndex: 0 },
+          effects: [{ type: 'game:event', name: 'describePass', payload: { pass: state.describePass + 1 } }],
+        };
+      }
       return startDiscuss(state);
     }
 
@@ -311,13 +335,13 @@ function hostNext(state: UndercoverState, ctx: EngineCtx): ReduceResult<Undercov
       return startVote({ ...state }, [{ type: 'timer:cancel', id: 'discuss' }]);
 
     case 'reveal': {
-      if (state.winner) return endGame(state);
+      if (state.winner) return endManche(state);
       if (state.pendingWhiteGuessFor) return startWhiteGuess(state);
       return startNextRound(state, ctx);
     }
 
     case 'whiteGuess': {
-      if (state.winner) return endGame(state);
+      if (state.winner) return endManche(state);
       return startNextRound(state, ctx);
     }
 
@@ -363,6 +387,7 @@ function startNextRound(state: UndercoverState, ctx: EngineCtx): ReduceResult<Un
       ...state,
       phase: 'describe',
       round,
+      describePass: 1,
       // Dès le tour 2, Mr. White peut parler en premier (la contrainte ne vaut qu'au tour 1).
       speakingOrder: drawSpeakingOrder(state.alive, state.roles, round, ctx.rng),
       turnIndex: 0,
@@ -375,11 +400,15 @@ function startNextRound(state: UndercoverState, ctx: EngineCtx): ReduceResult<Un
   };
 }
 
-function endGame(state: UndercoverState): ReduceResult<UndercoverState> {
+/** Fin de manche : dernière manche → fin de série ; sinon la suite viendra du serveur. */
+function endManche(state: UndercoverState): ReduceResult<UndercoverState> {
   const winner = state.winner!;
+  const isFinal = state.mancheIndex >= state.params.manchesCount;
   return {
     state: { ...state, phase: 'end' },
-    effects: [{ type: 'game:ended', winner }],
+    effects: isFinal
+      ? [{ type: 'game:ended', winner }]
+      : [{ type: 'game:event', name: 'mancheEnded', payload: { winner, mancheIndex: state.mancheIndex } }],
   };
 }
 
@@ -409,7 +438,18 @@ function handleTimeout(state: UndercoverState, timerId: 'discuss' | 'vote' | 'wh
 
 // ─── Dépouillement (fiche 5.1 étape 6 : égalités, re-vote, votes blancs) ────
 
-function resolveVotes(state: UndercoverState, extraEffects: GameEffect[] = []): ReduceResult<UndercoverState> {
+function resolveVotes(baseState: UndercoverState, extraEffects: GameEffect[] = []): ReduceResult<UndercoverState> {
+  // Bonus de « bon vote » : tout dépouillement (élimination, égalité, re-vote
+  // déclenché) marque les votants ayant visé un infiltré — même si le groupe
+  // n'a pas suivi. Base du +1 des civils en cas de victoire (cf. DECISIONS.md).
+  const goodVoterIds = [...baseState.goodVoterIds];
+  for (const [voterId, target] of Object.entries(baseState.votes)) {
+    if (target !== 'blank' && baseState.roles[target] !== 'civilian' && !goodVoterIds.includes(voterId)) {
+      goodVoterIds.push(voterId);
+    }
+  }
+  const state: UndercoverState = { ...baseState, goodVoterIds };
+
   const counts = new Map<PlayerId, number>();
   let blankCount = 0;
   for (const target of Object.values(state.votes)) {
@@ -546,18 +586,45 @@ function removePlayer(state: UndercoverState, playerId: PlayerId): ReduceResult<
 
 // ─── Points et récap (fiche 5.1 étape 10) ───────────────────────────────────
 
-export function undercoverPoints(state: UndercoverState): Array<{ playerId: PlayerId; points: number }> {
+/**
+ * Points de LA manche (barème révisé, cf. DECISIONS.md) :
+ * civils vainqueurs → 2 pts chacun, +1 pour ceux qui ont visé un infiltré dans
+ * un dépouillement ; undercover vainqueurs → 3 pts par infiltré vivant ;
+ * Mr. White vainqueur au guess → 4 pts.
+ */
+export function undercoverManchePoints(
+  state: UndercoverState,
+): Array<{ playerId: PlayerId; points: number; goodVote: boolean }> {
   const winner = state.winner;
   return state.playerIds.map((playerId) => {
     const role = state.roles[playerId];
+    const goodVote = role === 'civilian' && state.goodVoterIds.includes(playerId);
     let points = 0;
-    if (winner === 'civilians' && role === 'civilian') points = UNDERCOVER_POINTS.civilian;
+    if (winner === 'civilians' && role === 'civilian') {
+      points = UNDERCOVER_POINTS.civilian + (goodVote ? UNDERCOVER_POINTS.goodVoteBonus : 0);
+    }
     if (winner === 'infiltrators' && role !== 'civilian' && state.alive.includes(playerId)) {
       points = UNDERCOVER_POINTS.undercover;
     }
     if (winner === 'mrwhite' && role === 'mrwhite') points = UNDERCOVER_POINTS.mrwhite;
-    return { playerId, points };
+    return { playerId, points, goodVote };
   });
+}
+
+/** Cumul de la série : manches précédentes + manche courante (si terminée). */
+export function undercoverCumulativePoints(state: UndercoverState): Array<{ playerId: PlayerId; points: number }> {
+  const cumul = new Map<PlayerId, number>(Object.entries(state.carriedPoints));
+  if (state.phase === 'end') {
+    for (const { playerId, points } of undercoverManchePoints(state)) {
+      cumul.set(playerId, (cumul.get(playerId) ?? 0) + points);
+    }
+  }
+  for (const playerId of state.playerIds) {
+    if (!cumul.has(playerId)) cumul.set(playerId, 0);
+  }
+  return [...cumul.entries()]
+    .map(([playerId, points]) => ({ playerId, points }))
+    .sort((x, y) => y.points - x.points);
 }
 
 export function undercoverSummary(winner: UndercoverWinner): string {
@@ -571,13 +638,26 @@ export function undercoverSummary(winner: UndercoverWinner): string {
   }
 }
 
+/** Résultat pour le récap de soirée — cumul de série, résumé selon 1 ou N manches. */
 export function buildUndercoverResult(state: UndercoverState, players: Player[], endedAt: number): GameResult {
   const byId = new Map(players.map((p) => [p.id, p]));
+  const cumulative = undercoverCumulativePoints(state);
+  let summary: string;
+  if (state.params.manchesCount <= 1) {
+    summary = undercoverSummary(state.winner ?? 'civilians');
+  } else {
+    const top = cumulative.filter((c) => c.points === cumulative[0]?.points && c.points > 0);
+    const names = top.map((c) => byId.get(c.playerId)?.name ?? '???').join(' & ');
+    summary =
+      top.length > 0
+        ? `${state.mancheIndex} manches — en tête : ${names} (${top[0].points} pts)`
+        : `${state.mancheIndex} manches jouées`;
+  }
   return {
     game: 'undercover',
     endedAt,
-    summary: undercoverSummary(state.winner ?? 'civilians'),
-    points: undercoverPoints(state).map(({ playerId, points }) => ({
+    summary,
+    points: cumulative.map(({ playerId, points }) => ({
       playerId,
       name: byId.get(playerId)?.name ?? '???',
       avatar: byId.get(playerId)?.avatar ?? '❓',

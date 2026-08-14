@@ -17,6 +17,11 @@ export interface UndercoverPublicView {
   kind: 'undercover';
   phase: UndercoverPhase;
   round: number;
+  /** Manche courante (1-indexée) sur `manchesTotal`. */
+  mancheIndex: number;
+  manchesTotal: number;
+  /** Passe de description courante (1-indexée) sur `params.describePasses`. */
+  describePass: number;
   aliveIds: PlayerId[];
   /** L'ordre de parole est affiché sur la TV (fiche 5.1, étape 1) : public. */
   speakingOrder: PlayerId[];
@@ -45,6 +50,8 @@ export interface UndercoverPublicView {
     discussSeconds: number;
     voteSeconds: number;
     publicVotes: boolean;
+    manchesCount: number;
+    describePasses: number;
   };
 }
 
@@ -52,7 +59,11 @@ export interface UndercoverEndView {
   winner: UndercoverWinner;
   words: { a: string; b: string; civilianWord: 'a' | 'b' };
   roles: Array<{ playerId: PlayerId; role: UndercoverRole; word?: string }>;
-  points: Array<{ playerId: PlayerId; points: number }>;
+  /** Points de CETTE manche ; `goodVote` = bonus de bon vote (civils vainqueurs). */
+  points: Array<{ playerId: PlayerId; points: number; goodVote: boolean }>;
+  /** Cumul de la série (manches précédentes + celle-ci), trié décroissant. */
+  cumulative: Array<{ playerId: PlayerId; points: number }>;
+  isFinalManche: boolean;
 }
 
 /** Partie privée du joueur destinataire (🔒). */
