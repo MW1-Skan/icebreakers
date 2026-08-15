@@ -141,7 +141,7 @@ import { WavelengthDialComponent } from '../../components/wavelength-dial.compon
         font-weight: 700;
       }
       .role-banner.telepath {
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .role-banner .manche {
         font-size: 0.9rem;
@@ -155,7 +155,7 @@ import { WavelengthDialComponent } from '../../components/wavelength-dial.compon
         text-align: center;
         font-size: 2.2rem;
         font-weight: 900;
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       form {
         display: flex;
@@ -172,7 +172,7 @@ import { WavelengthDialComponent } from '../../components/wavelength-dial.compon
         text-align: center;
         font-size: 1.5rem;
         font-weight: 800;
-        color: var(--info);
+        color: var(--game-color, var(--info));
         margin-bottom: 0.4rem;
       }
       .slider-row {
@@ -183,7 +183,7 @@ import { WavelengthDialComponent } from '../../components/wavelength-dial.compon
       }
       .slider-row input[type='range'] {
         flex: 1;
-        accent-color: var(--accent);
+        accent-color: var(--game-color, var(--accent));
         height: 2.2rem;
       }
       .cursor-value {
@@ -206,7 +206,7 @@ import { WavelengthDialComponent } from '../../components/wavelength-dial.compon
       }
       .my-points.big {
         font-size: 2.4rem;
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .row-center {
         display: flex;

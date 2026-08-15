@@ -226,7 +226,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         font-weight: 700;
       }
       .role-banner.guesser {
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .role-banner .manche {
         font-size: 0.9rem;
@@ -319,7 +319,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       .proposal {
         font-size: 1.8rem;
         font-weight: 800;
-        color: var(--info);
+        color: var(--game-color, var(--info));
         margin: 0.4rem 0;
       }
       .verdict {
@@ -336,7 +336,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       .final-score {
         font-size: 3rem;
         font-weight: 900;
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .final-label {
         font-size: 1.5rem;

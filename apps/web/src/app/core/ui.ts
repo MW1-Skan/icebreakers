@@ -1,4 +1,18 @@
-import type { UndercoverRole, UndercoverWinner } from '@icebreakers/shared';
+import type { GameId, UndercoverRole, UndercoverWinner } from '@icebreakers/shared';
+
+/**
+ * Identité visuelle de chaque jeu (emoji, nom, couleur signature définie dans
+ * styles.css) — utilisée par les shells host/player pour poser `--game-color`
+ * et afficher le chip du jeu en cours.
+ */
+export const GAME_META: Record<GameId, { emoji: string; name: string; color: string }> = {
+  undercover: { emoji: '🕵️', name: 'Undercover', color: 'var(--game-undercover)' },
+  justone: { emoji: '☝️', name: 'Just One', color: 'var(--game-justone)' },
+  wavelength: { emoji: '🌊', name: 'Wavelength', color: 'var(--game-wavelength)' },
+  ito: { emoji: '🔢', name: 'Ito', color: 'var(--game-ito)' },
+  spyfall: { emoji: '🔎', name: 'Spyfall', color: 'var(--game-spyfall)' },
+  taboo: { emoji: '⏱️', name: 'Taboo', color: 'var(--game-taboo)' },
+};
 
 export const AVATARS = [
   '🦊', '🐸', '🐼', '🦁', '🐙', '🦄', '🐝', '🦉',

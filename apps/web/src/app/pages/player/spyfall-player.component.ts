@@ -234,7 +234,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       .final-points {
         font-size: 2.4rem;
         font-weight: 900;
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
     `,
   ],

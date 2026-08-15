@@ -132,7 +132,7 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
         text-align: center;
       }
       .theme-text {
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .convention {
         font-size: 1.2rem;

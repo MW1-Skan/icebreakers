@@ -191,8 +191,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         font-size: 1.1rem;
       }
       .my-turn {
-        border-color: var(--accent);
-        background: var(--accent-soft);
+        border-color: var(--game-color, var(--accent));
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
         font-size: 1.35rem;
         font-weight: 700;
         text-align: center;
@@ -208,8 +208,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         padding: 0.9em 0.6em;
       }
       .vote-option.chosen {
-        border-color: var(--accent);
-        background: var(--accent-soft);
+        border-color: var(--game-color, var(--accent));
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
         font-weight: 800;
       }
       .row-center {

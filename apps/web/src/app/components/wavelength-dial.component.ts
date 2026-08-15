@@ -69,9 +69,9 @@ export interface DialMarker {
         bottom: -6px;
         width: 4px;
         transform: translateX(-50%);
-        background: var(--accent);
+        background: var(--game-color, var(--accent));
         border-radius: 2px;
-        box-shadow: 0 0 8px var(--accent);
+        box-shadow: 0 0 8px var(--game-color, var(--accent));
       }
       .marker {
         position: absolute;

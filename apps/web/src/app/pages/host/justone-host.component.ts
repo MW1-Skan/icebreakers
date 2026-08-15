@@ -129,8 +129,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         flex: 1;
       }
       .score-tag {
-        color: var(--accent);
-        border-color: var(--accent);
+        color: var(--game-color, var(--accent));
+        border-color: var(--game-color, var(--accent));
         font-weight: 700;
       }
       .notice {
@@ -156,8 +156,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         font-weight: 600;
       }
       .role-chip.guesser {
-        border-color: var(--accent);
-        background: var(--accent-soft);
+        border-color: var(--game-color, var(--accent));
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
       }
       .counter {
         text-align: center;
@@ -173,10 +173,10 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         padding: 2rem;
       }
       .proposal {
-        color: var(--info);
+        color: var(--game-color, var(--info));
       }
       .word {
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .verdict {
         font-size: 2rem;
@@ -194,7 +194,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         padding: 1.6rem;
       }
       .final .tv-huge {
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .history {
         width: 100%;

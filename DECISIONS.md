@@ -376,3 +376,11 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
 - **Accès admin** : lien discret « ⚙️ Administration des packs » en pied de
   la home (la protection reste le mot de passe + Access ; l'obscurité n'était
   pas une défense).
+- **Écrans de jeux** : la grille du lobby est fixée en 3×2 (2 colonnes sous
+  640 px). L'identité visuelle en jeu est portée par les shells : host.page et
+  player.page posent `--game-color` (+ un chip « emoji Nom » au header) à
+  partir de `GAME_META` (core/ui.ts) — les composants de jeu consomment
+  `var(--game-color, var(--accent))` sans savoir qui les héberge. Seuls les
+  accents « identité » basculent (surlignages, valeurs fortes, cible, barres) ;
+  les couleurs SÉMANTIQUES restent : rôles Undercover (Mr. White jaune même
+  quand la couleur du jeu est rouge), ok/danger (BUZZ rouge), avertissements.

@@ -175,6 +175,21 @@ button:focus-visible {
   color: var(--fg-muted);
 }
 
+/* Chip du jeu en cours (headers host + joueur) — hérite --game-color. */
+.game-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.15em 0.8em;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--game-color, var(--accent)) 55%, var(--border));
+  background: color-mix(in srgb, var(--game-color, var(--accent)) 12%, var(--bg-raised));
+  color: var(--game-color, var(--accent));
+}
+
 /* Écran projeté : sections géantes */
 .tv-title {
   font-family: var(--font-display);

@@ -146,8 +146,8 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
         gap: 1rem;
       }
       .role-chip {
-        border: 1px solid var(--accent);
-        background: var(--accent-soft);
+        border: 1px solid var(--game-color, var(--accent));
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
         border-radius: 999px;
         padding: 0.3rem 1rem;
         font-size: 1.15rem;
@@ -162,7 +162,7 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
         text-align: center;
         font-size: clamp(1.6rem, 4vw, 2.6rem);
         font-weight: 800;
-        color: var(--info);
+        color: var(--game-color, var(--info));
       }
       .counter {
         text-align: center;
@@ -185,8 +185,8 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
         color: var(--fg-muted);
       }
       .telepath-chip {
-        border-color: var(--accent);
-        color: var(--accent);
+        border-color: var(--game-color, var(--accent));
+        color: var(--game-color, var(--accent));
       }
       .totals ol,
       .podium ol {
@@ -208,8 +208,8 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
       }
       .totals li.leader,
       .podium li.first {
-        background: var(--accent-soft);
-        border: 1px solid var(--accent);
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
+        border: 1px solid var(--game-color, var(--accent));
         font-weight: 800;
       }
       .podium li.podium-row {

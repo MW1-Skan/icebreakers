@@ -66,9 +66,9 @@ export interface PlayerBadge {
         font-size: 1.4em;
       }
       .player.current {
-        border-color: var(--accent);
-        background: var(--accent-soft);
-        box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.25);
+        border-color: var(--game-color, var(--accent));
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--game-color, var(--accent)) 25%, transparent);
       }
       .player.off {
         opacity: 0.55;

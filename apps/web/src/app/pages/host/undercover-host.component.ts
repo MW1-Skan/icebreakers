@@ -225,8 +225,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         border: 2px solid transparent;
       }
       .speaking-order li.current {
-        border-color: var(--accent);
-        background: var(--accent-soft);
+        border-color: var(--game-color, var(--accent));
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
         font-weight: 800;
       }
       .speaking-order li.done {
@@ -283,7 +283,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       }
       .tally-row .bar {
         height: 1.1em;
-        background: var(--info);
+        background: var(--game-color, var(--info));
         border-radius: 6px;
         min-width: 4px;
       }

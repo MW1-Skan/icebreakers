@@ -4,6 +4,7 @@
  */
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { GAME_META } from '../../core/ui';
 import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
 import { ItoPlayerComponent } from './ito-player.component';
@@ -38,12 +39,15 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
         </div>
       </main>
     } @else if (view(); as v) {
-      <div class="player-screen">
+      <div class="player-screen" [style.--game-color]="gameMeta()?.color">
         <header>
           <span class="me">
             <span class="avatar">{{ v.me?.avatar }}</span>
             {{ v.me?.name }}
           </span>
+          @if (gameMeta(); as gm) {
+            <span class="game-chip">{{ gm.emoji }} {{ gm.name }}</span>
+          }
           <span class="code muted">{{ v.room.code }}</span>
           @if (!connected()) {
             <span class="tag offline">⚠ reconnexion…</span>
@@ -156,6 +160,11 @@ export class PlayerPage {
   readonly view = this.socket.view;
   readonly connected = this.socket.connected;
   private readonly joinError = signal<string | null>(null);
+
+  readonly gameMeta = computed(() => {
+    const kind = this.view()?.room.game?.kind;
+    return kind ? GAME_META[kind] : undefined;
+  });
 
   readonly fatalError = computed(() => {
     const socketError = this.socket.lastError();

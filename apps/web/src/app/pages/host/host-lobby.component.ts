@@ -446,8 +446,13 @@ const GAME_CARDS: GameCard[] = [
       /* ── Cartes de jeux ──────────────────────────────────────────────── */
       .game-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.9rem;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+      }
+      @media (max-width: 640px) {
+        .game-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
       }
       .game-card {
         position: relative;

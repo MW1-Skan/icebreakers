@@ -117,7 +117,7 @@ import { SocketService } from '../../core/socket.service';
       .theme {
         font-size: 1.5rem;
         font-weight: 800;
-        color: var(--accent);
+        color: var(--game-color, var(--accent));
       }
       .number-card {
         text-align: center;

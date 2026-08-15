@@ -138,8 +138,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         flex: 1;
       }
       .sudden {
-        border-color: var(--accent);
-        color: var(--accent);
+        border-color: var(--game-color, var(--accent));
+        color: var(--game-color, var(--accent));
         font-weight: 700;
       }
       .notice {
@@ -242,8 +242,8 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         border-radius: 10px;
       }
       .final li.leader {
-        background: var(--accent-soft);
-        border: 1px solid var(--accent);
+        background: color-mix(in srgb, var(--game-color, var(--accent)) 16%, var(--bg-raised));
+        border: 1px solid var(--game-color, var(--accent));
         font-weight: 800;
       }
       .medal {
