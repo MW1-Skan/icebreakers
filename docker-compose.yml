@@ -1,0 +1,31 @@
+# Secours VPS en 30 min (PRD §7.2, docs/DEPLOY.md §11). Avant le premier
+# `docker compose up -d --build` :
+#   cp config.example.json config.json   # puis personnalise-le
+#   cp .env.example .env                 # ADMIN_PASSWORD obligatoire (garde-fou prod)
+# L'état persistant tient dans `data/` + `config.json`, montés ci-dessous :
+# ils survivent aux redéploiements et se sauvegardent en copiant deux chemins.
+services:
+  app:
+    build: .
+    image: icebreakers
+    restart: unless-stopped
+    # Publication locale uniquement : rien d'exposé sur le réseau, cloudflared
+    # (sur l'hôte) pointe vers 127.0.0.1:3000 — même montage que le Mac mini.
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file: .env
+    environment:
+      # Verrouillés quoi que dise .env : dans le conteneur, l'app écoute sur
+      # 0.0.0.0:3000 (la restriction d'accès est portée par `ports` ci-dessus).
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+    volumes:
+      - ./data:/app/data
+      - type: bind
+        source: ./config.json
+        target: /app/config.json
+        read_only: true
+        bind:
+          # Erreur claire si config.json manque, plutôt qu'un dossier créé en douce.
+          create_host_path: false

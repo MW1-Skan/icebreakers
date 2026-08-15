@@ -1,0 +1,20 @@
+# Jamais dans l'image (PRD §4.5) : contenu interne et secrets locaux.
+data
+config.json
+.env
+PRD*.md
+
+# Inutiles au build (réinstallés/reconstruits dans l'image).
+node_modules
+**/node_modules
+**/dist
+.angular
+.git
+
+# Artefacts de test.
+coverage
+test-results
+playwright-report
+e2e/.tmp-admin
+*.log
+.DS_Store
