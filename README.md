@@ -120,6 +120,21 @@ e2e/                 Test Playwright de bout en bout.
 | `npm test` | Tests unitaires : moteur Undercover, non-fuite, packs, services |
 | `npm run e2e` | Build complet puis Playwright (1 animateur + 4 joueurs, port 3100) |
 | `npm run build` | Build serveur + front (le serveur sert alors le front) |
+| `npm run start:prod` | Lance le build en prod (lit `.env` ; cf. `docs/DEPLOY.md`) |
+
+## Déploiement
+
+Cible : un Mac mini derrière un **Cloudflare Tunnel** (aucun port entrant,
+l'app écoute `127.0.0.1` en production) protégé par **Cloudflare Access**
+(login email + OTP obligatoire). App et tunnel tournent en LaunchDaemon
+(`deploy/launchd/`), un `docker-compose.yml` sert de secours VPS. Garde-fous
+intégrés : `robots.txt` deny all, méta `noindex`, et refus de démarrer en
+production si le mot de passe admin est celui par défaut.
+
+Le pas-à-pas complet (quick tunnel d'essai, domaine, Access, monitoring,
+sauvegarde) : **[docs/DEPLOY.md](docs/DEPLOY.md)**. Scripts :
+`scripts/deploy.sh` (mise à jour), `scripts/status.sh` (santé),
+`scripts/quick-tunnel.sh` (essai jetable sans compte).
 
 ## Contenu (packs)
 

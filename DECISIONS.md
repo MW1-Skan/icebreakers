@@ -301,3 +301,53 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
 - **E2E** : serveur de test sur le port 3100 (pas de collision avec `npm run
   dev`) ; la cible du vote est déduite par la règle du mot minoritaire plutôt
   que codée en dur — le test reste vrai même si la seed change les rôles.
+
+## Déploiement (§7.2 — étape 8)
+
+- **`HOST`** : en `NODE_ENV=production` le défaut devient `127.0.0.1` (aucun
+  port entrant, §7.2) ; hors prod, comportement historique inchangé (pas de
+  bind explicite → dev et e2e intacts). Dans le conteneur, `HOST=0.0.0.0` est
+  verrouillé par compose et la restriction revient à la publication
+  (`127.0.0.1:3000:3000`) — même posture réseau que le natif.
+- **Garde-fou mot de passe** (demande explicite du prompt) étendu au mot de
+  passe **vide ou blanc**, pas seulement « change-me » : un `ADMIN_PASSWORD=`
+  oublié dans `.env` serait sinon pire que le défaut. Vérifié AVANT
+  l'initialisation de Nest (message net, exit 1) ; prouvé par unitaires
+  (`boot-guard.spec.ts`) et par e2e sur le build réel (`e2e/deploy.spec.ts`,
+  qui spawne `dist/` en prod avec `CONFIG_PATH=config.example.json`).
+- **`robots.txt`** servi par un endpoint (pas un fichier statique) + exclusion
+  du fallback SPA : sans elle, une requête `Accept: text/html` recevait
+  `index.html`. L'e2e le vérifie précisément avec cet en-tête.
+- **`.env`** lu par `node --env-file` (natif Node ≥ 20.6) — zéro dépendance
+  dotenv. `start:prod` utilise `--env-file-if-exists` (tolère l'absence) ; le
+  plist utilise `--env-file` strict : au boot, un `.env` manquant doit être une
+  erreur visible (log + relance throttlée), pas un démarrage sans mot de passe
+  (que le garde-fou bloquerait de toute façon).
+- **Plists committés avec placeholders** `__REPO_DIR__`/`__NODE_BIN__`/
+  `__USER__` (§4.5 : aucun chemin ni identifiant réel) — lintés `plutil` tels
+  quels et après rendu `sed` (les deux vérifiés). Secrets dans `.env` chmod
+  600, jamais dans le plist (lisible par tout compte local).
+- **LaunchDaemon + `UserName`** plutôt que LaunchAgent : démarrage au boot sans
+  session. Conséquence TCC documentée : cloner hors `~/Documents`/`~/Desktop`/
+  `~/Downloads` (DEPLOY §1) — un daemon n'y a pas accès sans consentement UI.
+- **cloudflared** : plist maison (uniforme avec celui de l'app, config
+  explicite `~/.cloudflared/config.yml`) ; l'alternative officielle
+  `cloudflared service install` est mentionnée pour le cas VPS.
+- **`deploy.sh` ne relance que l'app** : le tunnel ne dépend pas du build, le
+  relancer couperait l'URL publique à chaque déploiement.
+- **UptimeRobot vs Access** : `/health` est exposé via une application Access
+  dédiée en action **Bypass** (path `health`) — sinon le monitor voit le mur de
+  login. `/health` ne divulgue que `ok` + uptime. `status.sh` traite un 200
+  anonyme sur l'URL publique comme une alerte (« Access manquant »).
+- **Docker** : `NODE_ENV=production` dans l'image → même garde-fou (vérifié) ;
+  `config.json` monté avec `create_host_path: false` (erreur claire si absent,
+  au lieu d'un dossier créé en silence) ; image sans devDeps ni Angular
+  (`npm ci --omit=dev -w apps/server -w libs/shared`, 274 Mo) ; `.dockerignore`
+  exclut `data/`, `config.json`, `.env`, `PRD*.md` (§4.5 pour l'image aussi).
+- **Quick tunnel** : le script exige une confirmation après l'avertissement
+  (pas d'Access → contenu `normal` uniquement) et vérifie d'abord que l'app
+  répond. Testé en réel : URL `trycloudflare.com` servie puis coupée.
+- **Ordre de la doc** : Access (§5) est AVANT l'installation des daemons (§6)
+  et tout partage d'URL ; le seul instant d'exposition anonyme est le test
+  manuel du tunnel (§4), URL inconnue et `noindex`/`robots.txt` déjà actifs.
+  Le test réseau bureau est en §2, jouable dès le jour 1 (risque n°1 du PRD).
