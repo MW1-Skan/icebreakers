@@ -33,7 +33,7 @@ test('administration des packs : login, upload, activation, suppression', async 
   await page.getByLabel('Mot de passe admin').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrer' }).click();
   await expect(page.getByRole('heading', { name: /Packs chargés/ })).toBeVisible();
-  await expect(page.locator('tbody tr')).toHaveCount(6); // les 6 packs intégrés
+  await expect(page.locator('tbody tr')).toHaveCount(7); // les 7 packs intégrés
 
   // ── Upload invalide → rapport d'erreurs lisible, rien n'est ajouté ────────
   await page
@@ -41,7 +41,7 @@ test('administration des packs : login, upload, activation, suppression', async 
     .setInputFiles(asFile('invalide.json', { ...VALID_PACK, id: 'bad', entries: [] }));
   await expect(page.getByText('Pack refusé :')).toBeVisible();
   await expect(page.locator('.error-report')).toContainText('vide');
-  await expect(page.locator('tbody tr')).toHaveCount(6);
+  await expect(page.locator('tbody tr')).toHaveCount(7);
 
   // ── Upload valide → listé « à chaud », jouable immédiatement ──────────────
   await page.locator('input[type="file"]').setInputFiles(asFile('interne-e2e-01.json', VALID_PACK));
@@ -68,11 +68,14 @@ test('administration des packs : login, upload, activation, suppression', async 
   const body = await template.json();
   expect(body.game).toBe('taboo');
   expect(body.entries[0].forbidden).toHaveLength(3);
+  const cnTemplate = await request.get('/api/packs/template/codenames');
+  expect(cnTemplate.status()).toBe(200);
+  expect((await cnTemplate.json()).game).toBe('codenames');
 
   // ── Suppression (packs à chaud uniquement) ────────────────────────────────
   page.on('dialog', (dialog) => dialog.accept());
   await row.getByRole('button', { name: 'Supprimer' }).click();
-  await expect(page.locator('tbody tr')).toHaveCount(6);
+  await expect(page.locator('tbody tr')).toHaveCount(7);
   await expect(page.locator('tbody tr', { hasText: 'interne-e2e-01' })).toHaveCount(0);
 
   // les packs intégrés n'ont pas de bouton Supprimer

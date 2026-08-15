@@ -384,3 +384,46 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   accents « identité » basculent (surlignages, valeurs fortes, cible, barres) ;
   les couleurs SÉMANTIQUES restent : rôles Undercover (Mr. White jaune même
   quand la couleur du jeu est rouge), ok/danger (BUZZ rouge), avertissements.
+
+## Codenames (7e jeu — fiche validée en session, hors PRD)
+
+- **Spec de référence** : la fiche proposée et validée en conversation (le PRD
+  s'arrête à 6 jeux). Entrées de pack « A.8 » calquées sur Just One
+  (`{ word, difficulty? }`) ; volumes recommandés : 50 min, 150+ confortable.
+- **Validation d'indice côté serveur** : un seul mot (aucun espace) et
+  différent (normalisé) de tout mot NON révélé de la grille — un mot déjà
+  révélé redevient jouable (il est « couvert », comme dans le jeu physique).
+  Les formes dérivées dites à l'oral restent de l'arbitrage humain :
+  contrôle host « Invalider l'indice » (réutilisé de Wavelength), possible
+  UNIQUEMENT avant la première touche du tour.
+- **Distributions** : 25 → 9/8/7/1, 20 → 7/6/6/1, 16 → 6/5/4/1. Camp de
+  départ tiré au sort puis ALTERNÉ entre manches ; équipes stables sur la
+  série, maîtres-espions TOURNANTS (rotation dans l'ordre de l'équipe).
+- **Chronos optionnels** (0 = désactivé) : indice 90 s — timeout = tour passé
+  sans indice ; devinettes 120 s — timeout = fin de tour. Pause/+30 s host
+  inchangés.
+- **Déconnexions : gel, pas d'annulation** (contrairement au rejeu Taboo) :
+  maître-espion actif absent (phase indice) ou plus AUCUN devineur actif
+  connecté (phase devinettes) → chrono en pause jusqu'au retour, ou remède
+  host `transferSpymaster` (nouveau host:control) qui dégèle si le nouveau
+  maître-espion est connecté. Pas de `removeFromRound` en cours de manche
+  (les équipes sont l'ossature du jeu) ; kick au lobby inchangé.
+- **Barème** : gagnants 3 pts, perdants 1 pt, 0 si défaite par assassin ;
+  cumul de série. Récap : « Les Rouges gagnent 9–6 » / « … ont touché
+  l'assassin ☠️ » / « Série : Rouge 2 – 1 Bleu ».
+- **Tirage de grille** (`drawCodenamesGrid`) : N mots DISTINCTS (normalisés,
+  dédupliqués inter-packs), en préférant les éléments jamais joués puis en
+  recyclant avec le bandeau ♻️ ; `NO_CONTENT` s'il existe moins de N mots
+  distincts. En Random, la pondération interne/normal s'applique mot à mot.
+- **Couleurs** : Rouge/Bleu/neutre/assassin sont SÉMANTIQUES
+  (`--cn-red`/`--cn-blue`/`--cn-neutral`/`--cn-assassin`), distinctes de la
+  couleur signature du jeu (lime `--game-codenames`). La grille partagée
+  (`codenames-grid.component`) expose `data-kind` uniquement quand la couleur
+  est légitimement visible (révélée, clé du maître-espion, fin de manche) —
+  c'est aussi ce que lit le e2e pour piloter la partie.
+- **Non-fuite** : la clé n'existe que dans la vue des deux maîtres-espions
+  (même clé, y compris pendant le tour adverse — fidèle au jeu de table) ;
+  `keyReveal` public en phase de fin seulement. Tests bloquants
+  `project-codenames.spec.ts`.
+- **admin.spec e2e** passe de 6 à 7 packs intégrés (pack builtin
+  `codenames-normal-01`, 80 mots grand public).

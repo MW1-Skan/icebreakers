@@ -28,6 +28,10 @@ Jeux disponibles (joueurs actifs, animateur exclu) :
 - **Taboo** ⏱️ (4–10 j, binômes) — faire deviner sans le mot ni les 3 interdits,
   60 s au chrono, les autres joueurs voient la carte et buzzent les fautes.
   Binômes composés ou aléatoires (trio si impair), mort subite sur égalité.
+- **Codenames** 🗝️ (4–10 j, équipes) — Rouges contre Bleus sur une grille de
+  mots ; un maître-espion par camp guide ses devineurs aux indices « un mot +
+  un nombre » (validés par le serveur). Touchez vos mots, évitez ceux de
+  l'adversaire… et l'assassin ☠️. Grille 16/20/25, manches à rôles tournants.
 
 ## Démarrage
 
