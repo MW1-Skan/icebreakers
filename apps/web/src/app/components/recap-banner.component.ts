@@ -10,7 +10,7 @@ import type { GameResult } from '@icebreakers/shared';
   template: `
     @if (recap().length > 0) {
       <div class="recap card">
-        <h3>Récap de la soirée</h3>
+        <h3>Récap de la session</h3>
         <ul>
           @for (r of recap(); track $index) {
             <li>

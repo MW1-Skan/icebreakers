@@ -62,7 +62,7 @@ test('une partie Just One complète : 5 manches, rotation, arbitrage', async ({ 
   }
 
   await host.getByRole('button', { name: 'Retour au lobby' }).click();
-  await expect(host.getByText('Récap de la soirée')).toBeVisible();
+  await expect(host.getByText('Récap de la session')).toBeVisible();
   await expect(host.getByText(/Score d'équipe : 2\/5/)).toBeVisible();
 
   for (const ctx of contexts) await ctx.close();

@@ -155,7 +155,6 @@ const GAME_CARDS: GameCard[] = [
         <h2>
           Joueurs
           <span class="count">{{ view().room.players.length }}</span>
-          <span class="muted hint">(l'animateur ne joue pas)</span>
         </h2>
         @if (view().room.players.length === 0) {
           <p class="muted">Personne pour l'instant — la TV attend les premiers arrivants…</p>

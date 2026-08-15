@@ -77,7 +77,7 @@ test('deux manches Wavelength : cible secrète, placements, cumul partagé', asy
   await expect(host.getByText(`« ${clues[0]} »`)).toBeVisible();
 
   await host.getByRole('button', { name: 'Retour au lobby' }).click();
-  await expect(host.getByText('Récap de la soirée')).toBeVisible();
+  await expect(host.getByText('Récap de la session')).toBeVisible();
   await expect(host.getByText(/8 pts/).first()).toBeVisible();
 
   for (const ctx of contexts) await ctx.close();

@@ -103,7 +103,7 @@ test('deux manches Ito : poses croissantes, erreur → −1 vie et défausse, ve
   }
 
   await host.getByRole('button', { name: 'Retour au lobby' }).click();
-  await expect(host.getByText('Récap de la soirée')).toBeVisible();
+  await expect(host.getByText('Récap de la session')).toBeVisible();
   await expect(host.getByText('2/3 vies — Accordés')).toBeVisible();
 
   for (const ctx of contexts) await ctx.close();
