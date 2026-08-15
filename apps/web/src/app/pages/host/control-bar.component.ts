@@ -165,6 +165,15 @@ export class ControlBarComponent {
       }
       return 'Continuer';
     }
+    if (game.kind === 'codenames') {
+      if (game.phase === 'brief') return 'Lancer le premier indice';
+      if (game.phase === 'end') {
+        return game.mancheIndex < game.manchesTotal
+          ? `Manche suivante (${game.mancheIndex + 1}/${game.manchesTotal})`
+          : 'Voir le récap';
+      }
+      return 'Continuer';
+    }
     if (game.kind === 'taboo') {
       if (game.phase === 'recap') {
         return game.upcoming.length > 0 ? 'Passage suivant' : 'Continuer';

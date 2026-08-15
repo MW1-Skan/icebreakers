@@ -7,7 +7,9 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type {
   ClientView,
+  CodenamesParams,
   ContentMode,
+  PlayerPublicView,
   ItoParams,
   JustOneParams,
   PlayerId,
@@ -51,10 +53,11 @@ const SF_DEFAULTS: SpyfallParams = {
   spyGuessSeconds: 45,
 };
 const TB_DEFAULTS: TabooParams = { passageSeconds: 60, passesPerTeam: 2, hardPass: false };
+const CN_DEFAULTS: CodenamesParams = { gridSize: 25, manchesCount: 1, clueSeconds: 90, guessSeconds: 120 };
 
 const TEAM_LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
-type SelectableGame = 'undercover' | 'justone' | 'wavelength' | 'ito' | 'spyfall' | 'taboo';
+type SelectableGame = 'undercover' | 'justone' | 'wavelength' | 'ito' | 'spyfall' | 'taboo' | 'codenames';
 
 interface GameCard {
   id: SelectableGame;
@@ -133,6 +136,17 @@ const GAME_CARDS: GameCard[] = [
     type: 'Binômes',
     description:
       'En binômes : faites deviner un maximum de mots en 60 secondes sans prononcer le mot cible ni ses trois interdits. Tous les autres joueurs voient la carte en direct et buzzent la moindre faute. +1 par mot trouvé, −1 par buzz !',
+  },
+  {
+    id: 'codenames',
+    emoji: '🗝️',
+    name: 'Codenames',
+    color: 'var(--game-codenames)',
+    players: '4–10 joueurs',
+    duration: '12–15 min',
+    type: 'Équipes (Rouge vs Bleu)',
+    description:
+      'Deux équipes s’affrontent sur une grille de mots. Les maîtres-espions connaissent la couleur secrète de chaque mot et guident leurs devineurs à coups d’indices « un mot + un nombre ». Touchez vos mots, évitez ceux de l’adversaire… et surtout l’assassin ☠️.',
   },
 ];
 
@@ -342,6 +356,36 @@ const GAME_CARDS: GameCard[] = [
 
                 <label for="tbhard" title="La passe coûte −1">Mode dur</label>
                 <input id="tbhard" name="tbhard" type="checkbox" [ngModel]="tbParams().hardPass" (ngModelChange)="patchTb({ hardPass: $event })" />
+              } @else if (g.id === 'codenames') {
+                <label for="cnsize">Grille</label>
+                <select id="cnsize" name="cnsize" [ngModel]="cnParams().gridSize" (ngModelChange)="setCnGridSize($event)">
+                  @for (size of [16, 20, 25]; track size) {
+                    <option [value]="size">{{ size }} mots</option>
+                  }
+                </select>
+
+                <label for="cnmanches">Manches</label>
+                <select id="cnmanches" name="cnmanches" [ngModel]="cnParams().manchesCount" (ngModelChange)="patchCn({ manchesCount: +$event })">
+                  @for (n of [1, 2, 3]; track n) {
+                    <option [value]="n">{{ n }}</option>
+                  }
+                </select>
+
+                <label for="cnclue" title="Temps du maître-espion pour donner son indice">Chrono indice</label>
+                <select id="cnclue" name="cnclue" [ngModel]="cnParams().clueSeconds" (ngModelChange)="patchCn({ clueSeconds: +$event })">
+                  @for (s of [60, 90, 120, 180]; track s) {
+                    <option [value]="s">{{ s }} s</option>
+                  }
+                  <option [value]="0">sans</option>
+                </select>
+
+                <label for="cnguess" title="Temps de l'équipe pour toucher ses mots">Chrono devinettes</label>
+                <select id="cnguess" name="cnguess" [ngModel]="cnParams().guessSeconds" (ngModelChange)="patchCn({ guessSeconds: +$event })">
+                  @for (s of [60, 120, 180]; track s) {
+                    <option [value]="s">{{ s }} s</option>
+                  }
+                  <option [value]="0">sans</option>
+                </select>
               } @else {
                 <label for="jomanches">Manches</label>
                 <select id="jomanches" name="jomanches" [ngModel]="joParams().manchesCount" (ngModelChange)="patchJo({ manchesCount: +$event })">
@@ -368,6 +412,42 @@ const GAME_CARDS: GameCard[] = [
                 <input id="soft" name="soft" type="checkbox" [ngModel]="joParams().softPenalty" (ngModelChange)="patchJo({ softPenalty: $event })" />
               }
             </div>
+
+            @if (g.id === 'codenames' && view().room.players.length >= 4) {
+              <div class="teams-editor">
+                <span class="muted">Équipes :</span>
+                <button (click)="clearCnTeams()" [class.active]="!manualCnTeams()">🎲 Aléatoires au lancement</button>
+                <button (click)="startManualCnTeams()" [class.active]="manualCnTeams()">✍️ Composer</button>
+                @if (manualCnTeams()) {
+                  @for (p of view().room.players; track p.id) {
+                    <span class="team-assign">
+                      {{ p.avatar }} {{ p.name }}
+                      <select [ngModel]="cnTeamOf(p.id)" (ngModelChange)="assignCnTeam(p.id, +$event)" [name]="'cn-team-' + p.id">
+                        <option [value]="0">🔴 Rouge</option>
+                        <option [value]="1">🔵 Bleu</option>
+                      </select>
+                    </span>
+                  }
+                  @if (cnTeamsHint(); as hint) {
+                    <span class="blocker">{{ hint }}</span>
+                  }
+                }
+              </div>
+              <div class="teams-editor">
+                <span class="muted">Maîtres-espions :</span>
+                @for (team of [0, 1]; track team) {
+                  <span class="team-assign">
+                    {{ team === 0 ? '🔴' : '🔵' }}
+                    <select [ngModel]="cnSpymasters()[team]" (ngModelChange)="assignCnSpymaster(team, $event)" [name]="'cn-sm-' + team">
+                      <option value="">🎲 aléatoire</option>
+                      @for (p of cnTeamMembers(team); track p.id) {
+                        <option [value]="p.id">{{ p.avatar }} {{ p.name }}</option>
+                      }
+                    </select>
+                  </span>
+                }
+              </div>
+            }
 
             @if (g.id === 'taboo' && view().room.players.length >= 4) {
               <div class="teams-editor">
@@ -668,6 +748,11 @@ export class HostLobbyComponent {
     return selection?.game === 'taboo' ? selection.params : TB_DEFAULTS;
   });
 
+  readonly cnParams = computed<CodenamesParams>(() => {
+    const selection = this.view().room.selection;
+    return selection?.game === 'codenames' ? selection.params : CN_DEFAULTS;
+  });
+
   readonly games = GAME_CARDS;
   readonly teamLetters = TEAM_LETTERS;
   /** Éditeur de binômes Taboo : lettre d'équipe par joueur (vide = aléatoire). */
@@ -743,6 +828,8 @@ export class HostLobbyComponent {
         return this.sfOverrides();
       case 'taboo':
         return this.tbOverrides();
+      case 'codenames':
+        return this.cnOverrides();
       default:
         return {};
     }
@@ -766,6 +853,34 @@ export class HostLobbyComponent {
     void this.socket.selectGame('taboo', this.selectedMode(), { ...this.tbOverrides(), ...change });
   }
 
+  patchCn(change: Partial<CodenamesParams>): void {
+    void this.socket.selectGame('codenames', this.selectedMode(), { ...this.cnOverrides(), ...change });
+  }
+
+  setCnGridSize(value: string | number): void {
+    const size = Number(value);
+    this.patchCn({ gridSize: size === 16 ? 16 : size === 20 ? 20 : 25 });
+  }
+
+  private cnOverrides(): Partial<CodenamesParams> {
+    const p = this.cnParams();
+    const base: Partial<CodenamesParams> = {
+      gridSize: p.gridSize,
+      manchesCount: p.manchesCount,
+      clueSeconds: p.clueSeconds,
+      guessSeconds: p.guessSeconds,
+    };
+    const teams = this.buildCnTeams();
+    if (teams) {
+      base.teams = teams;
+      const [red, blue] = this.cnSpymasters();
+      if (red && blue && teams[0].includes(red) && teams[1].includes(blue)) {
+        base.spymasters = [red, blue];
+      }
+    }
+    return base;
+  }
+
   private sfOverrides(): Partial<SpyfallParams> {
     const p = this.sfParams();
     return { mancheSeconds: p.mancheSeconds, manchesCount: p.manchesCount };
@@ -781,6 +896,70 @@ export class HostLobbyComponent {
     const teams = this.buildTeams();
     if (teams) base.teams = teams;
     return base;
+  }
+
+  // ─── Éditeur d'équipes Codenames (Rouge/Bleu + maîtres-espions) ──────────
+
+  /** Camp par joueur (0 = Rouge, 1 = Bleu) ; vide = répartition aléatoire. */
+  readonly cnTeamAssignments = signal<Record<PlayerId, 0 | 1>>({});
+  /** Maîtres-espions choisis ('' = aléatoire) : [rouge, bleu]. */
+  readonly cnSpymasters = signal<[string, string]>(['', '']);
+  readonly manualCnTeams = computed(() => Object.keys(this.cnTeamAssignments()).length > 0);
+
+  cnTeamOf(playerId: string): 0 | 1 {
+    return this.cnTeamAssignments()[playerId] ?? 0;
+  }
+
+  cnTeamMembers(team: number): PlayerPublicView[] {
+    const players = this.view().room.players;
+    if (!this.manualCnTeams()) return players;
+    return players.filter((p) => this.cnTeamOf(p.id) === team);
+  }
+
+  assignCnTeam(playerId: string, team: number): void {
+    this.cnTeamAssignments.set({ ...this.cnTeamAssignments(), [playerId]: team === 1 ? 1 : 0 });
+    this.patchCn({});
+  }
+
+  assignCnSpymaster(team: number, playerId: string): void {
+    const next: [string, string] = [...this.cnSpymasters()];
+    next[team === 1 ? 1 : 0] = playerId;
+    this.cnSpymasters.set(next);
+    this.patchCn({});
+  }
+
+  startManualCnTeams(): void {
+    // Pré-remplissage : alternance Rouge/Bleu dans l'ordre d'arrivée.
+    const assignments: Record<string, 0 | 1> = {};
+    this.view().room.players.forEach((p, i) => {
+      assignments[p.id] = (i % 2) as 0 | 1;
+    });
+    this.cnTeamAssignments.set(assignments);
+    this.patchCn({});
+  }
+
+  clearCnTeams(): void {
+    this.cnTeamAssignments.set({});
+    this.cnSpymasters.set(['', '']);
+    this.patchCn({});
+  }
+
+  /** [rouges, bleus] valides (≥ 2 chacun), ou undefined = aléatoire côté serveur. */
+  private buildCnTeams(): [PlayerId[], PlayerId[]] | undefined {
+    if (!this.manualCnTeams()) return undefined;
+    const red: PlayerId[] = [];
+    const blue: PlayerId[] = [];
+    for (const p of this.view().room.players) {
+      (this.cnTeamOf(p.id) === 0 ? red : blue).push(p.id);
+    }
+    return red.length >= 2 && blue.length >= 2 ? [red, blue] : undefined;
+  }
+
+  cnTeamsHint(): string | undefined {
+    if (!this.manualCnTeams()) return undefined;
+    return this.buildCnTeams()
+      ? undefined
+      : 'Chaque équipe doit avoir au moins 2 joueurs — sinon répartition aléatoire.';
   }
 
   // ─── Éditeur de binômes Taboo ─────────────────────────────────────────────

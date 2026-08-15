@@ -32,6 +32,12 @@
   --game-ito: #b79cff;
   --game-spyfall: #ffa94d;
   --game-taboo: #ff8fd4;
+  --game-codenames: #b6e05f;
+  /* Codenames : couleurs SÉMANTIQUES des équipes et cartes (≠ couleur signature). */
+  --cn-red: #ff6b7a;
+  --cn-blue: #58a6ff;
+  --cn-neutral: #d9c9a3;
+  --cn-assassin: #61122b;
 }
 
 * {

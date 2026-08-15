@@ -16,6 +16,7 @@ const GAME_EMOJI: Record<GameId, string> = {
   ito: '🔢',
   spyfall: '🔎',
   taboo: '⏱️',
+  codenames: '🗝️',
 };
 const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall', 'taboo'];
 

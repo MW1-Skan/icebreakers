@@ -7,6 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GAME_META } from '../../core/ui';
 import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
+import { CodenamesHostComponent } from './codenames-host.component';
 import { ControlBarComponent } from './control-bar.component';
 import { HostLobbyComponent } from './host-lobby.component';
 import { ItoHostComponent } from './ito-host.component';
@@ -20,6 +21,7 @@ import { WavelengthHostComponent } from './wavelength-host.component';
   selector: 'app-host',
   imports: [
     RouterLink,
+    CodenamesHostComponent,
     ControlBarComponent,
     HostLobbyComponent,
     ItoHostComponent,
@@ -70,6 +72,9 @@ import { WavelengthHostComponent } from './wavelength-host.component';
             }
             @case ('taboo') {
               <app-taboo-host [view]="v" />
+            }
+            @case ('codenames') {
+              <app-codenames-host [view]="v" />
             }
             @default {
               <app-host-lobby [view]="v" />

@@ -7,6 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GAME_META } from '../../core/ui';
 import { SessionStore } from '../../core/session.store';
 import { SocketService } from '../../core/socket.service';
+import { CodenamesPlayerComponent } from './codenames-player.component';
 import { ItoPlayerComponent } from './ito-player.component';
 import { JustOnePlayerComponent } from './justone-player.component';
 import { SpyfallPlayerComponent } from './spyfall-player.component';
@@ -20,6 +21,7 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
   selector: 'app-player',
   imports: [
     RouterLink,
+    CodenamesPlayerComponent,
     ItoPlayerComponent,
     JustOnePlayerComponent,
     SpyfallPlayerComponent,
@@ -87,6 +89,9 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
               }
               @case ('taboo') {
                 <app-taboo-player [view]="v" />
+              }
+              @case ('codenames') {
+                <app-codenames-player [view]="v" />
               }
             }
           }

@@ -12,6 +12,7 @@ export const GAME_META: Record<GameId, { emoji: string; name: string; color: str
   ito: { emoji: '🔢', name: 'Ito', color: 'var(--game-ito)' },
   spyfall: { emoji: '🔎', name: 'Spyfall', color: 'var(--game-spyfall)' },
   taboo: { emoji: '⏱️', name: 'Taboo', color: 'var(--game-taboo)' },
+  codenames: { emoji: '🗝️', name: 'Codenames', color: 'var(--game-codenames)' },
 };
 
 export const AVATARS = [
