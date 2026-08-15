@@ -9,6 +9,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { entryElementId, normalizeText, validatePack } from '../shared';
 import type {
+  AdminPackInfo,
+  AdminUploadResult,
   ContentMode,
   GameId,
   ItoPackEntry,
@@ -31,6 +33,13 @@ export interface LoadReportEntry {
   errors: string[];
 }
 
+interface LoadedPack {
+  pack: Pack;
+  source: 'builtin' | 'data';
+  file: string;
+  enabled: boolean;
+}
+
 export interface DrawnElement<E> {
   elementId: string;
   entry: E;
@@ -48,7 +57,8 @@ interface IndexedElement {
 @Injectable()
 export class PacksService implements OnModuleInit {
   private readonly logger = new Logger('Packs');
-  private packs = new Map<string, Pack>(); // par id
+  private packs = new Map<string, LoadedPack>(); // par id
+  private disabledIds = new Set<string>();
   readonly loadReport: LoadReportEntry[] = [];
 
   constructor(
@@ -60,22 +70,44 @@ export class PacksService implements OnModuleInit {
     this.loadAll();
   }
 
+  /** Liste persistée des packs désactivés (à côté de data/packs/). */
+  private get disabledFile(): string {
+    return path.join(path.dirname(this.appConfig.dataPacksDir), 'packs-disabled.json');
+  }
+
+  private loadDisabledIds(): void {
+    this.disabledIds.clear();
+    try {
+      if (fs.existsSync(this.disabledFile)) {
+        const parsed = JSON.parse(fs.readFileSync(this.disabledFile, 'utf-8'));
+        if (Array.isArray(parsed)) parsed.forEach((id) => this.disabledIds.add(String(id)));
+      }
+    } catch {
+      this.logger.warn('packs-disabled.json illisible — tous les packs actifs.');
+    }
+  }
+
+  private persistDisabledIds(): void {
+    fs.mkdirSync(path.dirname(this.disabledFile), { recursive: true });
+    fs.writeFileSync(this.disabledFile, JSON.stringify([...this.disabledIds], null, 2));
+  }
+
   loadAll(): void {
     this.packs.clear();
     this.loadReport.length = 0;
-    for (const dir of [this.appConfig.builtinPacksDir, this.appConfig.dataPacksDir]) {
-      this.loadDir(dir);
-    }
+    this.loadDisabledIds();
+    this.loadDir(this.appConfig.builtinPacksDir, 'builtin');
+    this.loadDir(this.appConfig.dataPacksDir, 'data');
     const loaded = [...this.packs.values()];
     this.logger.log(
-      `${loaded.length} pack(s) chargé(s) : ${loaded.map((p) => `${p.id} (${p.game}/${p.mode}, ${p.entries.length} entrées)`).join(', ') || 'aucun'}`,
+      `${loaded.length} pack(s) chargé(s) : ${loaded.map((p) => `${p.pack.id} (${p.pack.game}/${p.pack.mode}, ${p.pack.entries.length} entrées${p.enabled ? '' : ', INACTIF'})`).join(', ') || 'aucun'}`,
     );
     for (const report of this.loadReport.filter((r) => !r.ok)) {
       this.logger.warn(`Pack rejeté « ${report.file} » :\n  - ${report.errors.join('\n  - ')}`);
     }
   }
 
-  private loadDir(dir: string): void {
+  private loadDir(dir: string, source: 'builtin' | 'data'): void {
     if (!fs.existsSync(dir)) return;
     const files = fs
       .readdirSync(dir)
@@ -104,13 +136,21 @@ export class PacksService implements OnModuleInit {
         });
         continue;
       }
-      this.packs.set(result.pack.id, result.pack);
+      this.packs.set(result.pack.id, {
+        pack: result.pack,
+        source,
+        file,
+        enabled: !this.disabledIds.has(result.pack.id),
+      });
       this.loadReport.push({ file, packId: result.pack.id, ok: true, errors: [] });
     }
   }
 
+  /** Packs ACTIFS uniquement — les inactifs n'alimentent ni tirages ni modes. */
   packsFor(game: GameId, mode?: PackMode): Pack[] {
-    return [...this.packs.values()].filter((p) => p.game === game && (mode === undefined || p.mode === mode));
+    return [...this.packs.values()]
+      .filter((p) => p.enabled && p.pack.game === game && (mode === undefined || p.pack.mode === mode))
+      .map((p) => p.pack);
   }
 
   /** Modes de contenu réellement disponibles pour un jeu (pilote l'UI host). */
@@ -281,9 +321,109 @@ export class PacksService implements OnModuleInit {
     const chosen = candidates[Math.floor(rng() * candidates.length)];
     usedEntryIds.add(chosen.elementId);
     if (teamName) this.teamHistory.markPlayed(teamName, [chosen.elementId]);
-    const pack = this.packs.get(chosen.packId)!;
+    const pack = this.packs.get(chosen.packId)!.pack;
     const entry = pack.entries[chosen.index] as E;
     return { elementId: chosen.elementId, entry, recycled };
+  }
+
+  // ─── Administration (PRD §4.3) ────────────────────────────────────────────
+
+  adminList(): AdminPackInfo[] {
+    return [...this.packs.values()]
+      .map((p) => ({
+        id: p.pack.id,
+        game: p.pack.game,
+        mode: p.pack.mode,
+        name: p.pack.name,
+        author: p.pack.author,
+        entriesCount: p.pack.entries.length,
+        source: p.source,
+        enabled: p.enabled,
+        file: p.file,
+      }))
+      .sort((a, b) => a.game.localeCompare(b.game) || a.id.localeCompare(b.id));
+  }
+
+  /**
+   * Upload d'un pack : validation Zod avec rapport lisible, écriture dans
+   * `data/packs/<id>.json` (survit au redémarrage, jamais dans Git), rechargement.
+   * Un id de pack `data` existant est REMPLACÉ (mise à jour) ; un id builtin
+   * est protégé.
+   */
+  uploadPack(raw: unknown): AdminUploadResult {
+    const result = validatePack(raw);
+    if (!result.ok) return { ok: false, errors: result.errors };
+    const existing = this.packs.get(result.pack.id);
+    if (existing?.source === 'builtin') {
+      return {
+        ok: false,
+        errors: [`L'id « ${result.pack.id} » est celui d'un pack intégré au code — choisis un autre id.`],
+      };
+    }
+    const replaced = existing !== undefined;
+    fs.mkdirSync(this.appConfig.dataPacksDir, { recursive: true });
+    // L'id est validé ^[a-z0-9][a-z0-9-]*$ : sûr comme nom de fichier.
+    const filePath = path.join(this.appConfig.dataPacksDir, `${result.pack.id}.json`);
+    if (replaced && existing.file !== `${result.pack.id}.json`) {
+      // L'ancien fichier portait un autre nom : on le retire pour éviter un doublon d'id.
+      fs.rmSync(path.join(this.appConfig.dataPacksDir, existing.file), { force: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(raw, null, 2));
+    this.loadAll();
+    this.logger.log(`Pack « ${result.pack.id} » ${replaced ? 'remplacé' : 'ajouté'} via /admin.`);
+    return { ok: true, packId: result.pack.id, entriesCount: result.pack.entries.length, replaced };
+  }
+
+  setEnabled(id: string, enabled: boolean): { ok: true } | { ok: false; error: string } {
+    const pack = this.packs.get(id);
+    if (!pack) return { ok: false, error: `Pack « ${id} » introuvable.` };
+    if (enabled) this.disabledIds.delete(id);
+    else this.disabledIds.add(id);
+    this.persistDisabledIds();
+    pack.enabled = enabled;
+    this.logger.log(`Pack « ${id} » ${enabled ? 'activé' : 'désactivé'}.`);
+    return { ok: true };
+  }
+
+  deletePack(id: string): { ok: true } | { ok: false; error: string } {
+    const pack = this.packs.get(id);
+    if (!pack) return { ok: false, error: `Pack « ${id} » introuvable.` };
+    if (pack.source !== 'data') {
+      return { ok: false, error: 'Un pack intégré au code ne se supprime pas — désactive-le.' };
+    }
+    fs.rmSync(path.join(this.appConfig.dataPacksDir, pack.file), { force: true });
+    this.disabledIds.delete(id);
+    this.persistDisabledIds();
+    this.loadAll();
+    this.logger.log(`Pack « ${id} » supprimé via /admin.`);
+    return { ok: true };
+  }
+
+  /** Template vide par jeu (Annexe A), prêt à remplir puis uploader. */
+  templateFor(game: GameId): Record<string, unknown> {
+    const envelope = {
+      formatVersion: 1,
+      id: `${game}-mon-equipe-01`,
+      game,
+      name: 'Nom lisible du pack',
+      mode: 'interne',
+      lang: 'fr',
+      author: 'Mon équipe',
+    };
+    const entries: Record<GameId, unknown[]> = {
+      undercover: [{ a: 'Premier mot', b: 'Mot très proche', difficulty: 1 }],
+      wavelength: [{ left: 'Pôle gauche', right: 'Pôle droit' }],
+      justone: [{ word: 'Mot à deviner', difficulty: 1 }],
+      spyfall: [
+        {
+          category: 'Nom du thème',
+          items: ['Item 1', 'Item 2', 'Item 3', 'Item 4', 'Item 5', 'Item 6', 'Item 7', 'Item 8'],
+        },
+      ],
+      ito: [{ theme: 'Une échelle subjective' }],
+      taboo: [{ word: 'Mot cible', forbidden: ['interdit 1', 'interdit 2', 'interdit 3'], difficulty: 1 }],
+    };
+    return { ...envelope, entries: entries[game] };
   }
 
   private indexElements(game: GameId, mode: PackMode): IndexedElement[] {

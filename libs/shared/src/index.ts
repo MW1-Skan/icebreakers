@@ -1,5 +1,6 @@
 export * from './types';
 export * from './view';
+export * from './admin';
 export * from './events';
 export * from './effects';
 export * from './packs';

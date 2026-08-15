@@ -9,7 +9,7 @@
     "emitDecoratorMetadata": true,
     "sourceMap": true,
     "incremental": true,
-    "types": ["node"]
+    "types": ["node", "multer"]
   },
   "include": ["src/**/*.ts", "../../libs/shared/src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
