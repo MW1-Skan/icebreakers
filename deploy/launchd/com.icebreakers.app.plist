@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    LaunchDaemon de l'app (PRD §7.2.2) : démarre au boot (sans session
+    ouverte), relance sur crash, logs en fichiers. Placeholders à remplacer
+    avant installation (sed exact dans docs/DEPLOY.md) :
+      __REPO_DIR__  chemin absolu du clone (hors ~/Documents, ~/Desktop,
+                    ~/Downloads — dossiers protégés par macOS pour un daemon)
+      __NODE_BIN__  chemin absolu de node (`which node`)
+      __USER__      utilisateur macOS qui exécute l'app (jamais root)
+    Le mot de passe admin vit dans __REPO_DIR__/.env (chmod 600), pas ici :
+    un plist de /Library/LaunchDaemons est lisible par tous les comptes.
+  -->
+  <key>Label</key>
+  <string>com.icebreakers.app</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE_BIN__</string>
+    <string>--env-file=.env</string>
+    <string>apps/server/dist/apps/server/src/main.js</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_DIR__</string>
+
+  <key>UserName</key>
+  <string>__USER__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Si le démarrage échoue en boucle (ex. garde-fou mot de passe), launchd
+       attend au moins 10 s entre deux relances — voir app.error.log. -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/__USER__/Library/Logs/icebreakers/app.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/__USER__/Library/Logs/icebreakers/app.error.log</string>
+</dict>
+</plist>

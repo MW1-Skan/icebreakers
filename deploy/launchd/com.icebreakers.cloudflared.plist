@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    LaunchDaemon du tunnel nommé cloudflared (PRD §7.2.3) : connexion
+    SORTANTE vers Cloudflare, aucun port entrant ouvert. Placeholders
+    (sed exact dans docs/DEPLOY.md) :
+      __CLOUDFLARED_BIN__  chemin absolu de cloudflared (`which cloudflared`)
+      __USER__             utilisateur macOS (ses ~/.cloudflared/ contiennent
+                           config.yml et les credentials du tunnel — jamais
+                           dans le repo, PRD §4.5)
+  -->
+  <key>Label</key>
+  <string>com.icebreakers.cloudflared</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__CLOUDFLARED_BIN__</string>
+    <string>--config</string>
+    <string>/Users/__USER__/.cloudflared/config.yml</string>
+    <string>tunnel</string>
+    <string>run</string>
+  </array>
+
+  <key>UserName</key>
+  <string>__USER__</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/__USER__/Library/Logs/icebreakers/cloudflared.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/__USER__/Library/Logs/icebreakers/cloudflared.error.log</string>
+</dict>
+</plist>

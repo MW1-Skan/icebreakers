@@ -1,0 +1,21 @@
+# Configuration du tunnel nommé cloudflared (PRD §7.2.3).
+#
+# À copier en ~/.cloudflared/config.yml puis à compléter — les vraies valeurs
+# (domaine, id de tunnel, credentials) vivent dans ~/.cloudflared/, JAMAIS
+# dans le repo (PRD §4.5).
+#
+#   <TUNNEL_ID>      affiché par `cloudflared tunnel create icebreakers`
+#                    (aussi via `cloudflared tunnel list`)
+#   <TON_USER>       ton utilisateur macOS (`whoami`)
+#   jeux.example.fr  ton vrai sous-domaine
+
+tunnel: <TUNNEL_ID>
+credentials-file: /Users/<TON_USER>/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # L'app écoute en local uniquement (127.0.0.1:3000) — le tunnel est le seul
+  # chemin d'entrée. Les WebSockets (Socket.IO) passent tels quels.
+  - hostname: jeux.example.fr
+    service: http://127.0.0.1:3000
+  # Tout autre hostname → 404.
+  - service: http_status:404
