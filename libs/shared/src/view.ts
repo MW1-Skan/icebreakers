@@ -15,6 +15,8 @@ import type { SpyfallParams } from './spyfall/types';
 import type { SpyfallMeView, SpyfallPublicView } from './spyfall/view';
 import type { TabooParams } from './taboo/types';
 import type { TabooMeView, TabooPublicView } from './taboo/view';
+import type { CodenamesParams } from './codenames/types';
+import type { CodenamesMeView, CodenamesPublicView } from './codenames/view';
 
 export interface TimerView {
   id: string;
@@ -46,7 +48,8 @@ export type GamePublicView =
   | WavelengthPublicView
   | ItoPublicView
   | SpyfallPublicView
-  | TabooPublicView;
+  | TabooPublicView
+  | CodenamesPublicView;
 export type GameMeView = {
   undercover?: UndercoverMeView;
   justone?: JustOneMeView;
@@ -54,6 +57,7 @@ export type GameMeView = {
   ito?: ItoMeView;
   spyfall?: SpyfallMeView;
   taboo?: TabooMeView;
+  codenames?: CodenamesMeView;
 };
 
 export type GameSelectionView =
@@ -62,7 +66,8 @@ export type GameSelectionView =
   | { game: 'wavelength'; contentMode: ContentMode; params: WavelengthParams }
   | { game: 'ito'; contentMode: ContentMode; params: ItoParams }
   | { game: 'spyfall'; contentMode: ContentMode; params: SpyfallParams }
-  | { game: 'taboo'; contentMode: ContentMode; params: TabooParams };
+  | { game: 'taboo'; contentMode: ContentMode; params: TabooParams }
+  | { game: 'codenames'; contentMode: ContentMode; params: CodenamesParams };
 
 /** Projection publique du salon — strictement identique host / miroir / joueurs. */
 export interface RoomPublicView {

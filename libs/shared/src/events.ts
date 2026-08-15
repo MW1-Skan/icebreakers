@@ -94,6 +94,16 @@ export const tabooParamsSchema = z.object({
   teams: z.array(z.array(z.string()).min(2).max(3)).min(2).max(5).optional(),
 });
 
+export const codenamesParamsSchema = z.object({
+  gridSize: z.union([z.literal(16), z.literal(20), z.literal(25)]).optional(),
+  manchesCount: z.number().int().min(1).max(3).optional(),
+  /** 0 = chrono désactivé. */
+  clueSeconds: z.number().int().min(0).max(300).optional(),
+  guessSeconds: z.number().int().min(0).max(300).optional(),
+  teams: z.tuple([z.array(z.string()).min(2), z.array(z.string()).min(2)]).optional(),
+  spymasters: z.tuple([z.string(), z.string()]).optional(),
+});
+
 const contentModeSchema = z.enum(['interne', 'normal', 'random']);
 
 export const hostSelectGameSchema = z.discriminatedUnion('game', [
@@ -127,6 +137,11 @@ export const hostSelectGameSchema = z.discriminatedUnion('game', [
     contentMode: contentModeSchema,
     params: tabooParamsSchema.default({}),
   }),
+  z.object({
+    game: z.literal('codenames'),
+    contentMode: contentModeSchema,
+    params: codenamesParamsSchema.default({}),
+  }),
 ]);
 
 export const hostStartSchema = z.object({}).default({});
@@ -142,6 +157,7 @@ export const hostControlSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('invalidateClue') }),
   z.object({ type: z.literal('changeTheme') }),
   z.object({ type: z.literal('cancelBuzz'), countAsFound: z.boolean().default(false) }),
+  z.object({ type: z.literal('transferSpymaster'), playerId: z.string() }),
 ]);
 
 export const gameActionSchema = z.discriminatedUnion('type', [
@@ -176,6 +192,15 @@ export const gameActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('found'), cardSeq: z.number().int() }),
   z.object({ type: z.literal('passCard'), cardSeq: z.number().int() }),
   z.object({ type: z.literal('buzz'), cardSeq: z.number().int() }),
+  // Codenames — `seenWord` (réutilisé) = consulter la clé ; l'indice a son
+  // propre type (mot unique + nombre, à ne pas confondre avec `clue`)
+  z.object({
+    type: z.literal('giveClue'),
+    word: z.string().trim().min(1, 'Ton indice est vide.').max(30, '30 caractères maximum.'),
+    count: z.number().int().min(1).max(9),
+  }),
+  z.object({ type: z.literal('revealCard'), cardIndex: z.number().int().min(0).max(24) }),
+  z.object({ type: z.literal('stopGuessing') }),
 ]);
 
 export type RoomCreatePayload = z.infer<typeof roomCreateSchema>;

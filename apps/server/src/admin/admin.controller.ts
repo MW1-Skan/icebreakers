@@ -29,7 +29,7 @@ import { PacksService } from '../packs/packs.service';
 
 const loginSchema = z.object({ password: z.string().min(1).max(200) });
 const toggleSchema = z.object({ enabled: z.boolean() });
-const GAMES: GameId[] = ['undercover', 'wavelength', 'justone', 'spyfall', 'ito', 'taboo'];
+const GAMES: GameId[] = ['undercover', 'wavelength', 'justone', 'spyfall', 'ito', 'taboo', 'codenames'];
 
 @Controller('api/admin')
 export class AdminController {

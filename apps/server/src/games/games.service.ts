@@ -5,6 +5,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import type {
+  CodenamesAction,
   GameEventMessage,
   ItoAction,
   JustOneAction,
@@ -79,6 +80,15 @@ import {
   resolveTabooParams,
   validateTabooSetup,
 } from './taboo/taboo.engine';
+import {
+  buildCodenamesResult,
+  guardCodenames,
+  initCodenames,
+  reduceCodenames,
+  resolveCodenamesParams,
+  startNextCodenamesManche,
+  validateCodenamesSetup,
+} from './codenames/codenames.engine';
 import type { GameEffect } from '../shared';
 
 export type GameAction =
@@ -87,7 +97,8 @@ export type GameAction =
   | WavelengthAction
   | ItoAction
   | SpyfallAction
-  | TabooAction;
+  | TabooAction
+  | CodenamesAction;
 
 @Injectable()
 export class GamesService {
@@ -129,7 +140,73 @@ export class GamesService {
         return this.startSpyfall(room);
       case 'taboo':
         return this.startTaboo(room);
+      case 'codenames':
+        return this.startCodenames(room);
     }
+  }
+
+  private startCodenames(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const selection = room.selection!;
+    if (selection.game !== 'codenames') throw new Error('unreachable');
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateCodenamesSetup(playerIds.length);
+    if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
+    const params = resolveCodenamesParams(selection.paramOverrides);
+
+    const drawn = this.packs.drawCodenamesGrid(
+      params.gridSize,
+      selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return {
+        ok: false,
+        error: { code: 'NO_CONTENT', message: `Il faut au moins ${params.gridSize} mots distincts pour ce mode.` },
+      };
+    }
+    room.contentRecycled = drawn.recycled;
+
+    const { state, effects } = initCodenames(playerIds, drawn.words, params, this.engineCtx(room));
+    room.game = state;
+    room.status = 'inGame';
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : Codenames lancé (grille ${params.gridSize}).`);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  /** Codenames — manche suivante (host:next depuis la fin de manche non finale). */
+  nextCodenamesManche(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (room.status !== 'inGame' || !game || game.kind !== 'codenames' || game.phase !== 'end') {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune manche à enchaîner.' } };
+    }
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+    const drawn = this.packs.drawCodenamesGrid(
+      game.params.gridSize,
+      room.selection.contentMode,
+      room.usedEntryIds,
+      room.rng,
+      this.appConfig.config.randomWeight,
+      room.teamName,
+    );
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus assez de mots distincts pour une grille.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+    const next = startNextCodenamesManche(game, drawn.words, this.engineCtx(room));
+    if (!next) {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'La partie est terminée.' } };
+    }
+    room.game = next.state;
+    this.rooms.touch(room);
+    this.applyEffects(room, next.effects);
+    return { ok: true };
   }
 
   private startSpyfall(room: Room): { ok: true } | { ok: false; error: WsError } {
@@ -390,6 +467,16 @@ export class GamesService {
       this.applyEffects(room, effects);
       return { ok: true };
     }
+    if (room.game.kind === 'codenames') {
+      const cnAction = action as CodenamesAction;
+      const guard = guardCodenames(room.game, cnAction, ctx);
+      if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+      const { state, effects } = reduceCodenames(room.game, cnAction, ctx);
+      room.game = state;
+      this.rooms.touch(room);
+      this.applyEffects(room, effects);
+      return { ok: true };
+    }
     const tabooAction = action as TabooAction;
     const guard = guardTaboo(room.game, tabooAction, ctx);
     if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
@@ -637,6 +724,10 @@ export class GamesService {
       const result = buildTabooResult(game, room.players, Date.now());
       result.summary = `Partie écourtée — ${result.summary}`;
       room.sessionRecap.push(result);
+    } else if (game?.kind === 'codenames' && (game.history.length >= 1 || game.phase === 'end')) {
+      const result = buildCodenamesResult(game, room.players, Date.now());
+      result.summary = `Série écourtée — ${result.summary}`;
+      room.sessionRecap.push(result);
     }
     room.game = undefined;
     room.status = 'lobby';
@@ -693,6 +784,8 @@ export class GamesService {
             room.sessionRecap.push(buildSpyfallResult(room.game, room.players, Date.now()));
           } else if (room.game?.kind === 'taboo') {
             room.sessionRecap.push(buildTabooResult(room.game, room.players, Date.now()));
+          } else if (room.game?.kind === 'codenames') {
+            room.sessionRecap.push(buildCodenamesResult(room.game, room.players, Date.now()));
           }
           events.push({ name: 'gameEnded', payload: effect.winner ? { winner: effect.winner } : undefined });
           break;

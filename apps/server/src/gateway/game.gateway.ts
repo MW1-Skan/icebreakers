@@ -26,6 +26,7 @@ import {
 } from '../shared';
 import type {
   ActionAck,
+  CodenamesAction,
   GameActionPayload,
   GameEventMessage,
   ItoAction,
@@ -129,6 +130,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         ) {
           this.games.dispatch(room, { type: 'SPY_DISCONNECTED' });
         }
+        // Codenames : maître-espion actif (indice) ou dernier devineur actif
+        // (devinettes) déconnecté → chrono en pause.
+        if (
+          room.status === 'inGame' &&
+          room.game?.kind === 'codenames' &&
+          !room.game.frozen &&
+          this.codenamesBlockedBy(room, viewer.playerId)
+        ) {
+          this.games.dispatch(room, { type: 'PLAYER_GONE' });
+        }
         // Taboo : orateur ou devineur du binôme actif déconnecté → chrono en pause (fiche 5.6).
         if (
           room.status === 'inGame' &&
@@ -202,6 +213,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         room.game.frozen
       ) {
         this.games.dispatch(room, { type: 'SPY_RECONNECTED' });
+      }
+      // Codenames : le maître-espion/devineur bloquant revient → le jeu repart.
+      if (
+        room.status === 'inGame' &&
+        room.game?.kind === 'codenames' &&
+        room.game.frozen &&
+        !this.codenamesBlockedBy(room, undefined)
+      ) {
+        this.games.dispatch(room, { type: 'PLAYER_BACK' });
       }
       // Taboo : l'orateur/devineur revient → le chrono repart.
       if (
@@ -298,6 +318,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           paramOverrides: parsed.data.params,
         };
         break;
+      case 'codenames':
+        ctx.room.selection = {
+          game: 'codenames',
+          contentMode: parsed.data.contentMode,
+          paramOverrides: parsed.data.params,
+        };
+        break;
     }
     this.rooms.touch(ctx.room);
     this.broadcastRoom(ctx.room);
@@ -354,6 +381,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     ) {
       return this.games.nextSpyfallManche(room);
     }
+    if (
+      room.game?.kind === 'codenames' &&
+      room.game.phase === 'end' &&
+      room.game.mancheIndex < room.game.params.manchesCount
+    ) {
+      return this.games.nextCodenamesManche(room);
+    }
     return this.games.dispatch(room, { type: 'HOST_NEXT' });
   }
 
@@ -390,10 +424,15 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
         return this.games.dispatch(room, { type: 'HOST_REMOVE_PLAYER', playerId: control.playerId });
       case 'invalidateClue':
-        if (room.game?.kind !== 'wavelength') {
+        if (room.game?.kind !== 'wavelength' && room.game?.kind !== 'codenames') {
           return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucun indice à invalider.' } };
         }
         return this.games.dispatch(room, { type: 'HOST_INVALIDATE_CLUE' });
+      case 'transferSpymaster':
+        if (room.game?.kind !== 'codenames') {
+          return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucun maître-espion à transférer.' } };
+        }
+        return this.games.dispatch(room, { type: 'HOST_TRANSFER_SPYMASTER', playerId: control.playerId });
       case 'changeTheme':
         return this.games.itoChangeTheme(room);
       case 'cancelBuzz':
@@ -466,6 +505,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
     if (room.game?.kind === 'taboo') {
       const action = this.mapTabooAction(parsed.data, playerId);
+      if (!action) return this.wrongGame();
+      return this.games.dispatch(room, action);
+    }
+    if (room.game?.kind === 'codenames') {
+      const action = this.mapCodenamesAction(parsed.data, playerId);
       if (!action) return this.wrongGame();
       return this.games.dispatch(room, action);
     }
@@ -552,6 +596,42 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       default:
         return undefined;
     }
+  }
+
+  private mapCodenamesAction(payload: GameActionPayload, playerId: string): CodenamesAction | undefined {
+    switch (payload.type) {
+      case 'seenWord':
+        return { type: 'SEEN_KEY', playerId };
+      case 'giveClue':
+        return { type: 'GIVE_CLUE', playerId, word: payload.word, count: payload.count };
+      case 'revealCard':
+        return { type: 'REVEAL', playerId, cardIndex: payload.cardIndex };
+      case 'stopGuessing':
+        return { type: 'STOP_GUESSING', playerId };
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * Vrai si le jeu Codenames est bloqué par les déconnexions : maître-espion
+   * actif absent (phase indice) ou plus aucun devineur actif connecté (phase
+   * devinettes). `leavingId` : joueur en train de partir (pas encore marqué).
+   */
+  private codenamesBlockedBy(room: Room, leavingId: string | undefined): boolean {
+    const game = room.game;
+    if (game?.kind !== 'codenames') return false;
+    const connected = new Set(
+      room.players.filter((p) => p.connected && p.id !== leavingId).map((p) => p.id),
+    );
+    if (game.phase === 'clue') {
+      return !connected.has(game.spymasters[game.activeTeam]);
+    }
+    if (game.phase === 'guess') {
+      const guessers = game.teams[game.activeTeam].filter((id) => id !== game.spymasters[game.activeTeam]);
+      return guessers.every((id) => !connected.has(id));
+    }
+    return false;
   }
 
   private wrongGame(): { ok: false; error: WsError } {

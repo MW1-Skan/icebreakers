@@ -3,6 +3,8 @@
  * jamais sérialisé vers un client (seules les projections sortent).
  */
 import type {
+  CodenamesParams,
+  CodenamesState,
   ContentMode,
   GameResult,
   ItoParams,
@@ -30,7 +32,8 @@ export type GameState =
   | WavelengthState
   | ItoState
   | SpyfallState
-  | TabooState;
+  | TabooState
+  | CodenamesState;
 
 /** Surcharges explicites du host ; les défauts sont résolus au lancement. */
 export type GameSelection =
@@ -39,7 +42,8 @@ export type GameSelection =
   | { game: 'wavelength'; contentMode: ContentMode; paramOverrides: Partial<WavelengthParams> }
   | { game: 'ito'; contentMode: ContentMode; paramOverrides: Partial<ItoParams> }
   | { game: 'spyfall'; contentMode: ContentMode; paramOverrides: Partial<SpyfallParams> }
-  | { game: 'taboo'; contentMode: ContentMode; paramOverrides: Partial<TabooParams> };
+  | { game: 'taboo'; contentMode: ContentMode; paramOverrides: Partial<TabooParams> }
+  | { game: 'codenames'; contentMode: ContentMode; paramOverrides: Partial<CodenamesParams> };
 
 export interface Room {
   code: string; // "KZTR"

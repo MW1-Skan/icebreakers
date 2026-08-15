@@ -7,7 +7,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { entryElementId, normalizeText, validatePack } from '../shared';
+import { entryElementId, normalizeText, shuffled, validatePack } from '../shared';
 import type {
   AdminPackInfo,
   AdminUploadResult,
@@ -272,6 +272,64 @@ export class PacksService implements OnModuleInit {
   }
 
   /**
+   * Codenames : tire `count` MOTS DISTINCTS (normalisés) pour une grille, en
+   * privilégiant les éléments jamais joués (anti-répétition intra-salon) puis
+   * en recyclant si besoin. NO_CONTENT s'il n'existe pas assez de mots
+   * distincts, tous packs actifs du mode confondus.
+   */
+  drawCodenamesGrid(
+    count: number,
+    contentMode: ContentMode,
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    randomWeight: number,
+    teamName?: string,
+  ): { words: string[]; recycled: boolean } | { error: 'NO_CONTENT' } {
+    void teamName; // anti-répétition inter-rétros : par élément, non pertinente pour une grille entière
+    interface Candidate {
+      elementId: string;
+      word: string;
+      normalized: string;
+      mode: PackMode;
+    }
+    const byMode = (mode: PackMode): Candidate[] =>
+      this.indexElements('codenames', mode).map((e) => {
+        const entry = this.packs.get(e.packId)!.pack.entries[e.index] as { word: string };
+        return { elementId: e.elementId, word: entry.word, normalized: normalizeText(entry.word), mode };
+      });
+    const scope = this.modesInScope(contentMode).flatMap(byMode);
+    // Dédoublonnage inter-packs par mot normalisé (un même mot dans deux packs = un seul candidat).
+    const distinct = new Map<string, Candidate[]>();
+    for (const c of scope) {
+      distinct.set(c.normalized, [...(distinct.get(c.normalized) ?? []), c]);
+    }
+    if (distinct.size < count) return { error: 'NO_CONTENT' };
+
+    // En Random, la pondération s'applique mot par mot quand les deux modes proposent le mot.
+    const pool = [...distinct.values()].map((variants) => {
+      if (variants.length === 1) return variants[0];
+      const interne = variants.find((v) => v.mode === 'interne');
+      const normal = variants.find((v) => v.mode === 'normal');
+      if (!interne || !normal) return variants[0];
+      return rng() < randomWeight ? interne : normal;
+    });
+
+    const fresh = shuffled(pool.filter((c) => !usedEntryIds.has(c.elementId)), rng);
+    let recycled = false;
+    let chosen = fresh.slice(0, count);
+    if (chosen.length < count) {
+      // Pool épuisé : on complète avec des mots déjà joués (re-mélange signalé).
+      recycled = true;
+      const used = shuffled(pool.filter((c) => usedEntryIds.has(c.elementId)), rng);
+      const missing = count - chosen.length;
+      chosen = [...chosen, ...used.slice(0, missing)];
+      for (const c of used.slice(0, missing)) usedEntryIds.delete(c.elementId);
+    }
+    for (const c of chosen) usedEntryIds.add(c.elementId);
+    return { words: shuffled(chosen.map((candidate) => candidate.word), rng), recycled };
+  }
+
+  /**
    * Tire un élément de contenu en respectant le mode (§3.5) et l'anti-répétition
    * intra-salon. Pool épuisé → re-mélange signalé (« contenu recyclé »).
    */
@@ -422,6 +480,7 @@ export class PacksService implements OnModuleInit {
       ],
       ito: [{ theme: 'Une échelle subjective' }],
       taboo: [{ word: 'Mot cible', forbidden: ['interdit 1', 'interdit 2', 'interdit 3'], difficulty: 1 }],
+      codenames: [{ word: 'Mot de grille', difficulty: 1 }],
     };
     return { ...envelope, entries: entries[game] };
   }

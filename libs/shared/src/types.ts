@@ -18,7 +18,7 @@ export interface Player {
  */
 export type RoomStatus = 'lobby' | 'inGame' | 'recap';
 
-export type GameId = 'undercover' | 'wavelength' | 'justone' | 'spyfall' | 'ito' | 'taboo';
+export type GameId = 'undercover' | 'wavelength' | 'justone' | 'spyfall' | 'ito' | 'taboo' | 'codenames';
 
 /** Étiquette de mode d'un pack — volontairement générique (PRD §4.5). */
 export type PackMode = 'interne' | 'normal';

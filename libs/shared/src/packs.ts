@@ -175,6 +175,21 @@ const tabooEntries = nonEmptyEntries(tabooEntry).superRefine((entries, ctx) => {
   }
 });
 
+// Codenames (A.8) : mêmes entrées que Just One — des mots simples et
+// évocateurs ; une grille consomme jusqu'à 25 mots distincts.
+const codenamesEntry = z.object({ word: textField('word'), difficulty: difficultyField });
+
+const codenamesEntries = nonEmptyEntries(codenamesEntry).superRefine((entries, ctx) => {
+  const dup = findDuplicate(entries.map((e) => normalizeText(e.word)));
+  if (dup) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [dup.second],
+      message: `mot en doublon avec entries[${dup.first}] (« ${entries[dup.second].word} »)`,
+    });
+  }
+});
+
 // ─── Enveloppe commune (§4.2) ───────────────────────────────────────────────
 
 const envelopeFields = {
@@ -200,8 +215,9 @@ export const packSchema = z.discriminatedUnion(
     z.object({ ...envelopeFields, game: z.literal('spyfall'), entries: spyfallEntries }),
     z.object({ ...envelopeFields, game: z.literal('ito'), entries: itoEntries }),
     z.object({ ...envelopeFields, game: z.literal('taboo'), entries: tabooEntries }),
+    z.object({ ...envelopeFields, game: z.literal('codenames'), entries: codenamesEntries }),
   ],
-  'game : jeu inconnu (attendu : undercover, wavelength, justone, spyfall, ito ou taboo)',
+  'game : jeu inconnu (attendu : undercover, wavelength, justone, spyfall, ito, taboo ou codenames)',
 );
 
 export type Pack = z.infer<typeof packSchema>;
@@ -217,6 +233,8 @@ export type SpyfallPack = Extract<Pack, { game: 'spyfall' }>;
 export type SpyfallPackEntry = SpyfallPack['entries'][number];
 export type TabooPack = Extract<Pack, { game: 'taboo' }>;
 export type TabooPackEntry = TabooPack['entries'][number];
+export type CodenamesPack = Extract<Pack, { game: 'codenames' }>;
+export type CodenamesPackEntry = CodenamesPack['entries'][number];
 
 /** Identifiant d'un élément de contenu : `packId#index` (§4.2, anti-répétition). */
 export function entryElementId(packId: string, index: number): string {

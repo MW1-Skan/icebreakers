@@ -18,3 +18,5 @@ export * from './spyfall/types';
 export * from './spyfall/view';
 export * from './taboo/types';
 export * from './taboo/view';
+export * from './codenames/types';
+export * from './codenames/view';

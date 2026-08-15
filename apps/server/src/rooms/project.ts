@@ -42,6 +42,12 @@ import {
 import { projectSpyfallMe, projectSpyfallPublic } from '../games/spyfall/spyfall.project';
 import { guardTaboo, resolveTabooParams, validateTabooSetup } from '../games/taboo/taboo.engine';
 import { projectTabooMe, projectTabooPublic } from '../games/taboo/taboo.project';
+import {
+  guardCodenames,
+  resolveCodenamesParams,
+  validateCodenamesSetup,
+} from '../games/codenames/codenames.engine';
+import { projectCodenamesMe, projectCodenamesPublic } from '../games/codenames/codenames.project';
 import type { ProjectionCtx, Room } from './room.types';
 
 function connectedIdsOf(room: Room): PlayerId[] {
@@ -67,6 +73,9 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
     if (!setup.ok) blockers.push(setup.message);
   } else if (room.selection.game === 'spyfall') {
     const setup = validateSpyfallSetup(playerCount);
+    if (!setup.ok) blockers.push(setup.message);
+  } else if (room.selection.game === 'codenames') {
+    const setup = validateCodenamesSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
   } else {
     const setup = validateTabooSetup(playerCount);
@@ -118,6 +127,12 @@ function projectSelection(room: Room, ctx: ProjectionCtx): GameSelectionView | u
         contentMode: room.selection.contentMode,
         params: resolveTabooParams(room.selection.paramOverrides),
       };
+    case 'codenames':
+      return {
+        game: 'codenames',
+        contentMode: room.selection.contentMode,
+        params: resolveCodenamesParams(room.selection.paramOverrides),
+      };
   }
 }
 
@@ -136,6 +151,8 @@ function projectGamePublic(room: Room): GamePublicView | undefined {
       return projectSpyfallPublic(room.game, connectedIdsOf(room));
     case 'taboo':
       return projectTabooPublic(room.game, connectedIdsOf(room));
+    case 'codenames':
+      return projectCodenamesPublic(room.game);
   }
 }
 
@@ -200,6 +217,10 @@ function projectHostControls(room: Room, ctx: ProjectionCtx): HostControlsView {
       case 'taboo':
         canNext = guardTaboo(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
         break;
+      case 'codenames':
+        // Fin de manche non finale : « Manche suivante » (géré hors réducteur).
+        canNext = room.game.phase === 'end' || guardCodenames(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
     }
   } else if (room.status === 'recap') {
     canNext = true; // retour au lobby
@@ -235,6 +256,8 @@ function projectMeGame(room: Room, playerId: PlayerId): GameMeView | undefined {
       return { spyfall: projectSpyfallMe(room.game, playerId) };
     case 'taboo':
       return { taboo: projectTabooMe(room.game, playerId) };
+    case 'codenames':
+      return { codenames: projectCodenamesMe(room.game, playerId) };
   }
 }
 
