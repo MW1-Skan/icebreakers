@@ -12,6 +12,7 @@ coverage/
 # e2e
 playwright-report/
 test-results/
+e2e/.tmp-admin/
 
 # Divers
 .DS_Store

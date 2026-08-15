@@ -124,14 +124,26 @@ e2e/                 Test Playwright de bout en bout.
 ## Contenu (packs)
 
 Tout le contenu vit dans des packs JSON validés par Zod (enveloppe commune +
-entrées par jeu). Un pack invalide est rejeté au chargement avec un rapport
-lisible — jamais de crash. Ajouter du contenu ne demande aucune modification
-de code : déposer un fichier dans `data/packs/` et redémarrer suffit (la page
-d'admin arrivera dans une étape ultérieure).
+entrées par jeu). Un pack invalide est rejeté avec un rapport lisible — jamais
+de crash. **Ajouter du contenu ne demande aucune modification de code.**
+
+### Page d'administration (`/admin`)
+
+Protégée par un mot de passe simple — variable d'environnement
+`ADMIN_PASSWORD`, sinon `adminPassword` de `config.json` (change le
+`change-me` par défaut !). Distinct de la protection d'accès globale du site.
+
+- **Uploader** un pack JSON : validation immédiate avec rapport d'erreurs
+  lisible ; écrit dans `data/packs/` (survit au redémarrage, jamais dans Git),
+  jouable aussitôt. Ré-uploader un id existant remplace le pack.
+- **Activer/désactiver** n'importe quel pack (persisté) — un pack inactif sort
+  des tirages et des modes proposés.
+- **Supprimer** les packs ajoutés à chaud (les packs intégrés se désactivent).
+- **Télécharger un template** vide par jeu, prêt à remplir.
 
 Le libellé affiché du mode `interne` vient de `config.json` (copie locale de
 `config.example.json`, gitignorée). Le dépôt ne contient que du contenu
-grand public.
+grand public — les packs `interne` n'entrent que par `/admin`.
 
 ## Garanties de confidentialité en jeu
 

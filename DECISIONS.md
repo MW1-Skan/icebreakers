@@ -264,6 +264,26 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   tant qu'orateur ; ses points s'ajoutent au cumul (comparaison équivalente
   entre ex æquo).
 
+## Page /admin (§4.3 — étape 7)
+
+- **Mot de passe** : le §4.3 dit « variable d'environnement », le §4.4 le place
+  dans `config.json` — les deux sont supportés, `ADMIN_PASSWORD` prime.
+  Comparaison à temps constant (hachages), jetons opaques en mémoire (12 h) —
+  cohérent avec l'état éphémère du serveur.
+- **Activation/désactivation** persistée dans `data/packs-disabled.json`
+  (à côté de `data/packs/`, gitignoré) ; les packs inactifs sortent des
+  tirages, des modes disponibles et des grilles/decks.
+- **Upload** : un id de pack `data` existant est REMPLACÉ (flux de mise à
+  jour) ; un id de pack builtin est protégé (message explicite). L'id validé
+  (`^[a-z0-9][a-z0-9-]*$`) sert de nom de fichier — aucun chemin utilisateur.
+- **Suppression** : packs à chaud uniquement ; un builtin se désactive.
+- **Templates** : endpoint public (`/api/packs/template/<jeu>`) — un squelette
+  ne porte aucun secret, et un lien direct est plus simple qu'un blob authentifié.
+  Chaque template est lui-même un pack valide (testé).
+- **Salons ouverts** : les modes disponibles se rafraîchissent au prochain
+  événement du salon (pas de push global sur changement de packs) — négligeable
+  en pratique, l'admin s'utilise entre deux parties.
+
 ## Paramétrage et configuration
 
 - **Défauts adaptatifs** : tant que le host ne touche à rien, la répartition des

@@ -9,15 +9,23 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
+  // Un seul worker : les specs partagent le serveur, et l'admin e2e modifie
+  // l'état global des packs (upload/désactivation) — pas de croisements.
+  workers: 1,
   use: {
     baseURL: 'http://localhost:3100',
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
-    command: 'node ../apps/server/dist/apps/server/src/main.js',
+    command: 'rm -rf .tmp-admin && node ../apps/server/dist/apps/server/src/main.js',
     port: 3100,
-    env: { PORT: '3100' },
+    env: {
+      PORT: '3100',
+      // données du e2e isolées du data/ du repo + mot de passe admin connu
+      DATA_PACKS_DIR: './.tmp-admin/packs',
+      ADMIN_PASSWORD: 'e2e-admin',
+    },
     reuseExistingServer: false,
     timeout: 30_000,
   },
