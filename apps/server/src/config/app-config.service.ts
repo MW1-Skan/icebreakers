@@ -6,6 +6,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { DEFAULT_ADMIN_PASSWORD } from './boot-guard';
 
 export interface AppConfig {
   siteName: string;
@@ -20,7 +21,7 @@ const DEFAULTS: AppConfig = {
   internalModeLabel: 'Interne',
   randomWeight: 0.5,
   timers: { discussSeconds: 60, voteSeconds: 45, whiteGuessSeconds: 30 },
-  adminPassword: 'change-me',
+  adminPassword: DEFAULT_ADMIN_PASSWORD,
 };
 
 /** Remonte l'arborescence jusqu'à la racine du repo (marqueur : config.example.json). */

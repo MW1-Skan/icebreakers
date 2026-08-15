@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Header } from '@nestjs/common';
 import { AppConfigService } from './config/app-config.service';
 
 @Controller()
@@ -8,6 +8,13 @@ export class AppController {
   @Get('health')
   health(): { ok: boolean; uptime: number } {
     return { ok: true, uptime: process.uptime() };
+  }
+
+  /** Deny all : site privé, aucune indexation (PRD §7.1 et checklist §7.4). */
+  @Get('robots.txt')
+  @Header('content-type', 'text/plain; charset=utf-8')
+  robots(): string {
+    return 'User-agent: *\nDisallow: /\n';
   }
 
   /** Bits de config publics (nom du site, libellé du mode interne). */

@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { AppConfigService } from '../config/app-config.service';
+import { effectiveAdminPassword } from '../config/boot-guard';
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -16,7 +17,7 @@ export class AdminAuthService {
   constructor(private readonly appConfig: AppConfigService) {}
 
   private expectedPassword(): string {
-    return process.env.ADMIN_PASSWORD ?? this.appConfig.config.adminPassword;
+    return effectiveAdminPassword(process.env, this.appConfig.config);
   }
 
   /** Comparaison à temps constant (via hachage, longueurs égales garanties). */
