@@ -44,7 +44,7 @@ test('deux manches Ito : poses croissantes, erreur → −1 vie et défausse, ve
     players.push(page);
   }
 
-  await host.getByRole('tab', { name: /Ito/ }).click();
+  await host.getByRole('button', { name: /Ito/ }).click();
   await expect(host.locator('#itomanches')).toBeVisible();
   await host.locator('#itomanches').selectOption('2');
   await host.getByRole('button', { name: 'Lancer la partie' }).click();

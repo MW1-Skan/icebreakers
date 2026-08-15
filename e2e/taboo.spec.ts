@@ -36,7 +36,7 @@ test('deux passages Taboo : trouvés, buzz annulé, deck re-mélangé, podium', 
   const [alice, bob, chloe, david] = players;
 
   // ── Binômes composés (A,A,B,B dans l'ordre d'arrivée) + 1 passage/équipe ──
-  await host.getByRole('tab', { name: /Taboo/ }).click();
+  await host.getByRole('button', { name: /Taboo/ }).click();
   await expect(host.locator('#tbpasses')).toBeVisible();
   await host.locator('#tbpasses').selectOption('1');
   await host.getByRole('button', { name: '✍️ Composer' }).click();

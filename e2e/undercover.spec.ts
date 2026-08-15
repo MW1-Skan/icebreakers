@@ -102,7 +102,9 @@ test('série de 2 manches : cumul, bonus 🎯 des seuls votes non unanimes', asy
   await expect(players[0].getByText('Bienvenue !')).toBeVisible();
   await expect(host.getByText('Joueurs 4')).toBeVisible();
 
-  // ── Série de 2 manches + lancement ────────────────────────────────────────
+  // ── Série de 2 manches + lancement (la carte ouvre la modale de config) ───
+  await host.getByRole('button', { name: /Undercover/ }).click();
+  await expect(host.locator('#manches')).toBeVisible();
   await host.locator('#manches').selectOption('2');
   const startButton = host.getByRole('button', { name: 'Lancer la partie' });
   await expect(startButton).toBeEnabled();

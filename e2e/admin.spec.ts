@@ -54,7 +54,7 @@ test('administration des packs : login, upload, activation, suppression', async 
   const hostPage = await page.context().newPage();
   await hostPage.goto('/');
   await hostPage.getByRole('button', { name: 'Créer un salon' }).click();
-  await hostPage.getByRole('tab', { name: /Just One/ }).click();
+  await hostPage.getByRole('button', { name: /Just One/ }).click();
   await expect(hostPage.locator('#mode option', { hasText: 'Interne' })).toHaveCount(1);
   await hostPage.close();
 

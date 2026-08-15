@@ -351,3 +351,28 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   et tout partage d'URL ; le seul instant d'exposition anonyme est le test
   manuel du tunnel (§4), URL inconnue et `noindex`/`robots.txt` déjà actifs.
   Le test réseau bureau est en §2, jouable dès le jour 1 (risque n°1 du PRD).
+
+## UI — refonte « soirée jeux » et lobby en cartes (hors PRD, demande directe)
+
+- **Design system** (`apps/web/src/styles.css`) : thème nuit à lueurs
+  radiales, boutons pill à ombre franche (« pop »), tokens par jeu
+  (`--game-undercover`…), `--accent-soft`/`--danger-soft` en `color-mix`
+  remplacent les hex dupliqués dans les composants. Polices **bundlées** via
+  @fontsource (Fredoka display, Nunito texte) : aucune requête vers un tiers,
+  cohérent avec « aucun tracker » (§7.4) et le fonctionnement hors ligne.
+- **Lobby** : les jeux ne montrent plus leurs réglages dans la page — 6
+  cartes (emoji + nom seulement). Un clic sélectionne le jeu et ouvre une
+  **modale** : description (2–3 phrases), fiche (joueurs/durée/type),
+  réglages (mêmes champs/ids qu'avant), binômes Taboo, blockers et « Lancer
+  la partie ». Fermeture par ✕, clic hors modale ou Échap ; la sélection
+  reste (badge « ✓ Choisi » sur la carte — la TV affiche le jeu prévu).
+- **L'auto-sélection d'Undercover au lobby disparaît** : la sélection devient
+  un geste explicite de l'animateur (la modale est le seul endroit où l'on
+  règle et lance). Conséquence e2e : les specs cliquent la carte
+  (`getByRole('button')`, plus de `role="tab"`), undercover.spec inclus.
+- **Dans la modale, les réglages suivent la carte ouverte (`g.id`)**, pas la
+  sélection serveur : pas de flicker avant l'ack de `host:selectGame`, et un
+  changement de mode immédiat envoie les surcharges du bon jeu.
+- **Accès admin** : lien discret « ⚙️ Administration des packs » en pied de
+  la home (la protection reste le mot de passe + Access ; l'obscurité n'était
+  pas une défense).

@@ -1,24 +1,30 @@
 /**
  * Home : « Créer un salon » en un clic sur le poste qui sera projeté (§3.1),
- * plus un champ code pour rejoindre à la main si on n'a pas le QR.
+ * plus un champ code pour rejoindre à la main si on n'a pas le QR, et l'accès
+ * discret à la page d'administration des packs.
  */
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SessionStore } from '../core/session.store';
 import { SocketService } from '../core/socket.service';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <main class="home">
+      <div class="emoji-strip" aria-hidden="true">
+        <span>🕵️</span><span>☝️</span><span>🌊</span><span>🔢</span><span>🔎</span><span>⏱️</span>
+      </div>
       <h1 class="tv-huge">{{ siteName() }}</h1>
-      <p class="muted">Mini-jeux d'ouverture pour rétrospectives — l'écran de l'animateur se projette sur la TV.</p>
+      <p class="tagline muted">
+        Mini-jeux d'ouverture pour rétrospectives — l'écran de l'animateur se projette sur la TV.
+      </p>
 
       <div class="actions">
         <section class="card create">
-          <h2>Animer une rétro</h2>
+          <h2>🎬 Animer une rétro</h2>
           <p class="muted">Crée un salon sur ce poste (c'est lui qui sera projeté). Tu ne joues pas : tu animes.</p>
           <button class="primary big" (click)="createRoom()" [disabled]="creating()">
             {{ creating() ? 'Création…' : 'Créer un salon' }}
@@ -29,7 +35,7 @@ import { SocketService } from '../core/socket.service';
         </section>
 
         <section class="card join">
-          <h2>Rejoindre une partie</h2>
+          <h2>🙋 Rejoindre une partie</h2>
           <p class="muted">Scanne le QR sur la TV, ou saisis le code du salon.</p>
           <form (ngSubmit)="goJoin()">
             <input
@@ -45,7 +51,11 @@ import { SocketService } from '../core/socket.service';
           </form>
         </section>
       </div>
-      <footer class="muted">Les prénoms ne sont ni stockés ni transmis à des tiers — tout s'efface à la fermeture du salon.</footer>
+
+      <footer>
+        <p class="muted">Les prénoms ne sont ni stockés ni transmis à des tiers — tout s'efface à la fermeture du salon.</p>
+        <a routerLink="/admin" class="admin-link">⚙️ Administration des packs</a>
+      </footer>
     </main>
   `,
   styles: [
@@ -53,14 +63,42 @@ import { SocketService } from '../core/socket.service';
       .home {
         max-width: 900px;
         margin: 0 auto;
-        padding: 3rem 1.5rem;
+        padding: 3.5rem 1.5rem 2rem;
         text-align: center;
+      }
+      .emoji-strip {
+        display: flex;
+        justify-content: center;
+        gap: 0.9rem;
+        font-size: 2.1rem;
+        margin-bottom: 0.6rem;
+      }
+      .emoji-strip span {
+        display: inline-block;
+        transition: transform 150ms ease;
+      }
+      .emoji-strip span:nth-child(odd) {
+        transform: rotate(-8deg);
+      }
+      .emoji-strip span:nth-child(even) {
+        transform: rotate(7deg) translateY(-4px);
+      }
+      .emoji-strip span:hover {
+        transform: rotate(0) scale(1.25);
+      }
+      h1 {
+        color: var(--accent);
+        text-shadow: 0 6px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+      }
+      .tagline {
+        max-width: 34em;
+        margin: 0 auto;
       }
       .actions {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 1.5rem;
-        margin-top: 2rem;
+        margin-top: 2.2rem;
         text-align: left;
       }
       button.big {
@@ -82,8 +120,24 @@ import { SocketService } from '../core/socket.service';
         color: var(--danger);
       }
       footer {
-        margin-top: 3rem;
+        margin-top: 3.5rem;
         font-size: 0.85rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        align-items: center;
+      }
+      .admin-link {
+        color: var(--fg-muted);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.3em 0.9em;
+        transition: color 120ms ease, border-color 120ms ease;
+      }
+      .admin-link:hover {
+        color: var(--fg);
+        border-color: var(--fg-muted);
       }
     `,
   ],

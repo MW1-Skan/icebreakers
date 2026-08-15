@@ -40,7 +40,7 @@ test('une partie Just One complète : 5 manches, rotation, arbitrage', async ({ 
   }
 
   // ── Sélection de Just One, 5 manches, lancement ───────────────────────────
-  await host.getByRole('tab', { name: /Just One/ }).click();
+  await host.getByRole('button', { name: /Just One/ }).click();
   await expect(host.locator('#jomanches')).toBeVisible();
   await host.locator('#jomanches').selectOption('5');
   const startButton = host.getByRole('button', { name: 'Lancer la partie' });

@@ -31,7 +31,7 @@ test('une manche Spyfall : carte secrète, accusation unanime, points', async ({
     players.push(page);
   }
 
-  await host.getByRole('tab', { name: /Spyfall/ }).click();
+  await host.getByRole('button', { name: /Spyfall/ }).click();
   await expect(host.locator('#sfcount')).toBeVisible();
   await host.getByRole('button', { name: 'Lancer la partie' }).click();
 

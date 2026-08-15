@@ -32,7 +32,7 @@ test('deux manches Wavelength : cible secrète, placements, cumul partagé', asy
     players.push(page);
   }
 
-  await host.getByRole('tab', { name: /Wavelength/ }).click();
+  await host.getByRole('button', { name: /Wavelength/ }).click();
   await expect(host.locator('#wlmanches')).toBeVisible();
   await host.locator('#wlmanches').selectOption(String(MANCHES));
   await host.getByRole('button', { name: 'Lancer la partie' }).click();
