@@ -138,16 +138,55 @@ select {
   padding: 0.45em 0.8em;
 }
 
-input[type='checkbox'],
 input[type='radio'],
 input[type='range'] {
   accent-color: var(--accent);
-  width: 1.2em;
-  height: 1.2em;
 }
 
-input:focus,
-select:focus,
+/* Checkbox maison : arrondie, coche animée, teintée par le jeu en cours. */
+input[type='checkbox'] {
+  appearance: none;
+  width: 1.35em;
+  height: 1.35em;
+  margin: 0;
+  display: inline-grid;
+  place-content: center;
+  background: var(--bg-sunken);
+  border: 2px solid var(--border);
+  border-radius: 0.45em;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+input[type='checkbox']::before {
+  content: '';
+  width: 0.72em;
+  height: 0.72em;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background: var(--bg);
+  transform: scale(0);
+  transition: transform 120ms ease;
+}
+
+input[type='checkbox']:hover {
+  border-color: color-mix(in srgb, var(--border) 55%, var(--fg));
+}
+
+input[type='checkbox']:checked {
+  background: var(--game-color, var(--accent));
+  border-color: var(--game-color, var(--accent));
+}
+
+input[type='checkbox']:checked::before {
+  transform: scale(1);
+}
+
+/* Anneau de focus réservé à la navigation clavier (:focus-visible) — un clic
+   souris ne doit pas laisser de contour, notamment sur les checkboxes. */
+input:focus-visible,
+select:focus-visible,
 button:focus-visible {
   outline: 3px solid var(--info);
   outline-offset: 1px;
