@@ -134,7 +134,7 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
         padding: 2rem;
       }
       .paused {
-        background: #33270f;
+        background: var(--accent-soft);
         border-bottom: 1px solid var(--accent);
         padding: 0.6rem 1.2rem;
         font-weight: 600;

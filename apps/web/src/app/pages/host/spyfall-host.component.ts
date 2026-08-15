@@ -223,7 +223,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
         border-radius: 10px;
       }
       .final li.leader {
-        background: #2b2a1a;
+        background: var(--accent-soft);
         border: 1px solid var(--accent);
         font-weight: 800;
       }

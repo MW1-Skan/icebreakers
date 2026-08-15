@@ -92,13 +92,23 @@ import { WavelengthHostComponent } from './wavelength-host.component';
         gap: 1rem;
         padding: 0.7rem 1.4rem;
         border-bottom: 1px solid var(--border);
+        background: color-mix(in srgb, var(--bg-sunken) 55%, transparent);
+      }
+      .brand {
+        font-family: var(--font-display);
+        font-weight: 600;
       }
       .room-code {
         margin-left: auto;
-        font-size: 1.6rem;
-        font-weight: 800;
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-weight: 700;
         letter-spacing: 0.25em;
         color: var(--accent);
+        border: 2px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+        border-radius: 999px;
+        padding: 0.05em 0.6em 0.05em 0.85em;
+        background: var(--accent-soft);
       }
       .offline {
         color: var(--danger);

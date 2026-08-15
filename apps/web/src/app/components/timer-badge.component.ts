@@ -46,7 +46,7 @@ import { formatSeconds } from '../core/ui';
       }
       @keyframes pulse {
         50% {
-          background: #331b1b;
+          background: var(--danger-soft);
         }
       }
     `,

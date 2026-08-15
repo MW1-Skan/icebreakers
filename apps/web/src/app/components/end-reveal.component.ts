@@ -143,7 +143,7 @@ import { roleLabel, winnerLabel } from '../core/ui';
         border-radius: 10px;
       }
       .cumulative li.leader {
-        background: #2b2a1a;
+        background: var(--accent-soft);
         border: 1px solid var(--accent);
         font-weight: 800;
       }

@@ -192,7 +192,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       }
       .my-turn {
         border-color: var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
         font-size: 1.35rem;
         font-weight: 700;
         text-align: center;
@@ -209,7 +209,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       }
       .vote-option.chosen {
         border-color: var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
         font-weight: 800;
       }
       .row-center {

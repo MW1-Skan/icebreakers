@@ -58,7 +58,7 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
                 }
                 <span class="pt-chip telepath-chip">🧠 {{ nameOf(r.telepathId) }} +{{ r.telepathPoints }}</span>
               </div>
-              <p class="instruction">💬 Discussion libre — « mais pourquoi tu l'as mise là ?! »</p>
+              <p class="instruction">💬 Discussion libre</p>
               {{ '' }}
               <div class="totals card">
                 <h3>Cumul</h3>
@@ -147,7 +147,7 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
       }
       .role-chip {
         border: 1px solid var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
         border-radius: 999px;
         padding: 0.3rem 1rem;
         font-size: 1.15rem;
@@ -208,7 +208,7 @@ import { DialMarker, WavelengthDialComponent } from '../../components/wavelength
       }
       .totals li.leader,
       .podium li.first {
-        background: #2b2a1a;
+        background: var(--accent-soft);
         border: 1px solid var(--accent);
         font-weight: 800;
       }

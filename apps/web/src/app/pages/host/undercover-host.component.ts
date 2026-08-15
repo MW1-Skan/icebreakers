@@ -226,7 +226,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       }
       .speaking-order li.current {
         border-color: var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
         font-weight: 800;
       }
       .speaking-order li.done {

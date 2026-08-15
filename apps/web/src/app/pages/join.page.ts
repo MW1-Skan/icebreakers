@@ -88,9 +88,6 @@ import { SocketService } from '../core/socket.service';
         align-items: center;
         gap: 1rem;
       }
-      .chosen {
-        font-size: 2.6rem;
-      }
       .avatar-grid {
         display: grid;
         grid-template-columns: repeat(8, 1fr);
@@ -99,10 +96,24 @@ import { SocketService } from '../core/socket.service';
       .avatar-grid button {
         font-size: 1.4rem;
         padding: 0.3rem;
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
       }
       .avatar-grid button.selected {
         border-color: var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
+        transform: scale(1.08);
+      }
+      .chosen {
+        font-size: 2.6rem;
+        display: grid;
+        place-items: center;
+        width: 1.7em;
+        height: 1.7em;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        border: 2px solid var(--accent);
       }
       .error {
         color: var(--danger);

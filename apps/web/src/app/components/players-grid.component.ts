@@ -67,7 +67,7 @@ export interface PlayerBadge {
       }
       .player.current {
         border-color: var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
         box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.25);
       }
       .player.off {

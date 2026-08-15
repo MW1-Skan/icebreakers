@@ -157,7 +157,7 @@ import { TimerBadgeComponent } from '../../components/timer-badge.component';
       }
       .role-chip.guesser {
         border-color: var(--accent);
-        background: #2b2a1a;
+        background: var(--accent-soft);
       }
       .counter {
         text-align: center;
