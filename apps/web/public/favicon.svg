@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Manette de jeu sur tuile nuit — couleurs du thème (--bg-raised / --accent). -->
+  <defs>
+    <radialGradient id="tile" cx="30%" cy="22%" r="90%">
+      <stop offset="0%" stop-color="#242b55"/>
+      <stop offset="100%" stop-color="#12152c"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#tile)"/>
+  <!-- Corps de la manette + poignées -->
+  <rect x="10" y="21" width="44" height="22" rx="11" fill="#ffd166"/>
+  <circle cx="19" cy="41" r="8" fill="#ffd166"/>
+  <circle cx="45" cy="41" r="8" fill="#ffd166"/>
+  <!-- Croix directionnelle -->
+  <rect x="19.75" y="25" width="4.5" height="14" rx="1.5" fill="#151a34"/>
+  <rect x="15" y="29.75" width="14" height="4.5" rx="1.5" fill="#151a34"/>
+  <!-- Boutons -->
+  <circle cx="48" cy="29" r="2.9" fill="#151a34"/>
+  <circle cx="42" cy="35" r="2.9" fill="#151a34"/>
+</svg>
