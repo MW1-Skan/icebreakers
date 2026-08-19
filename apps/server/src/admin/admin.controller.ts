@@ -22,7 +22,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { z } from 'zod';
-import type { AdminLoginResponse, AdminPackInfo, AdminUploadResult, GameId } from '../shared';
+import type { AdminLoginResponse, AdminPackContent, AdminPackInfo, AdminUploadResult, GameId } from '../shared';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminGuard } from './admin.guard';
 import { PacksService } from '../packs/packs.service';
@@ -51,6 +51,15 @@ export class AdminController {
   @UseGuards(AdminGuard)
   list(): AdminPackInfo[] {
     return this.packs.adminList();
+  }
+
+  /** Contenu complet d'un pack (éditeur) — builtin compris, pour la duplication. */
+  @Get('packs/:id')
+  @UseGuards(AdminGuard)
+  get(@Param('id') id: string): AdminPackContent {
+    const found = this.packs.getPack(id);
+    if (!found) throw new NotFoundException(`Pack « ${id} » introuvable.`);
+    return found;
   }
 
   @Post('packs')

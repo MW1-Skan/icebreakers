@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { entryElementId, normalizeText, shuffled, validatePack } from '../shared';
 import type {
+  AdminPackContent,
   AdminPackInfo,
   AdminUploadResult,
   GameId,
@@ -391,6 +392,13 @@ export class PacksService implements OnModuleInit {
         file: p.file,
       }))
       .sort((a, b) => a.game.localeCompare(b.game) || a.id.localeCompare(b.id));
+  }
+
+  /** Contenu complet d'un pack (éditeur /admin) — builtin compris (duplication). */
+  getPack(id: string): AdminPackContent | undefined {
+    const loaded = this.packs.get(id);
+    if (!loaded) return undefined;
+    return { pack: loaded.pack, source: loaded.source, enabled: loaded.enabled };
   }
 
   /**

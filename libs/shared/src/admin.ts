@@ -1,4 +1,5 @@
 /** Contrat REST de la page /admin (PRD §4.3). */
+import type { Pack } from './packs';
 import type { GameId, PackMode } from './types';
 
 export interface AdminPackInfo {
@@ -17,6 +18,13 @@ export interface AdminPackInfo {
 export type AdminUploadResult =
   | { ok: true; packId: string; entriesCount: number; replaced: boolean }
   | { ok: false; errors: string[] };
+
+/** Contenu complet d'un pack (GET /api/admin/packs/:id — éditeur). */
+export interface AdminPackContent {
+  pack: Pack;
+  source: 'builtin' | 'data';
+  enabled: boolean;
+}
 
 export interface AdminLoginResponse {
   token: string;

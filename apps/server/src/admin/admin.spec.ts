@@ -135,13 +135,28 @@ describe('PacksService — administration', () => {
     if (!builtin.ok) expect(builtin.error).toContain('désactive');
   });
 
-  it('les templates des six jeux sont des packs valides', () => {
+  it('les templates des sept jeux sont des packs valides', () => {
     const service = makeService();
-    const games: GameId[] = ['undercover', 'wavelength', 'justone', 'spyfall', 'ito', 'taboo'];
+    const games: GameId[] = ['undercover', 'wavelength', 'justone', 'spyfall', 'ito', 'taboo', 'codenames'];
     for (const game of games) {
       const template = service.templateFor(game);
       const result = validatePack(template);
       expect(result.ok, `template ${game} invalide : ${JSON.stringify(result)}`).toBe(true);
     }
+  });
+
+  it('getPack : contenu complet (builtin compris, pour la duplication) ; inconnu → undefined', () => {
+    const service = makeService();
+    service.uploadPack(validPack('interne-team-01'));
+
+    const hot = service.getPack('interne-team-01');
+    expect(hot).toMatchObject({ source: 'data', enabled: true });
+    expect(hot?.pack.entries).toEqual([{ word: 'Cascade' }, { word: 'Tempête' }]);
+
+    const builtin = service.getPack('builtin-pack');
+    expect(builtin).toMatchObject({ source: 'builtin', enabled: true });
+    expect(builtin?.pack.name).toBe('Pack de test');
+
+    expect(service.getPack('fantome')).toBeUndefined();
   });
 });
