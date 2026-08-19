@@ -427,3 +427,28 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   `project-codenames.spec.ts`.
 - **admin.spec e2e** passe de 6 à 7 packs intégrés (pack builtin
   `codenames-normal-01`, 80 mots grand public).
+
+## Retours du premier déploiement réel (intégrés à DEPLOY.md)
+
+- **Cloudflare One, UI d'août 2026** : plus de section « Settings →
+  Authentication » ; les fournisseurs d'identité se trouvent via Access /
+  Integrations / la recherche du dashboard. L'onboarding ne pose par défaut
+  que la méthode « Cloudflare » (compte requis) → One-time PIN doit être
+  ajouté PUIS imposé au niveau de l'application (désactiver « Accept all
+  available identity providers », activer « Apply instant authentication »).
+  §5 réécrit en conséquence, avec un avertissement « l'UI bouge ».
+- **Session Access : 1 mois** (au lieu d'1 semaine) : une rétro toutes les
+  2 semaines ferait retaper un code à chaque fois avec 1 semaine.
+- **FileVault : les deux options documentées** au lieu du seul « désactivé » —
+  sur une machine à double usage (perso + serveur), le garder est légitime :
+  après coupure de courant, déverrouillage manuel (alerte UptimeRobot →
+  taper le mot de passe). Symptôme documenté : erreur 1033 avant login.
+- **Dev et prod sur le même Mac** : deux clones (prod hors `~/Documents`) +
+  port de prod dédié via `.env` (ex. 3010) reporté dans l'ingress cloudflared ;
+  les scripts prennent `PORT=…`. Documenté en §1/§12.
+- **OVH** : champ « IP associée » à laisser vide lors du changement de
+  serveurs DNS (réservé aux glue records) ; email du compte Cloudflare à
+  vérifier avant `cloudflared tunnel login`.
+- **Sauvegarde** : `mkdir -p data` avant le tar (cas « aucun pack encore
+  uploadé ») + option de chiffrement openssl documentée (l'archive contient
+  des secrets).

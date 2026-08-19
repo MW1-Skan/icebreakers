@@ -55,6 +55,12 @@ git clone <URL_DU_REPO> icebreakers && cd icebreakers
 > (TCC), et le LaunchDaemon de §6 doit lire le repo au boot, sans session.
 > Bon choix : `~/Apps/icebreakers`.
 
+> 💡 **Si le Mac mini est aussi ta machine de dev** : garde deux clones séparés
+> (celui-ci pour la prod, ton clone de travail ailleurs) et donne à la prod un
+> port dédié dans son `.env` (ex. `PORT=3010`) pour cohabiter avec
+> `npm run dev` (3000/4200). Reporte ce port dans l'ingress cloudflared (§4) et
+> préfixe les scripts : `PORT=3010 scripts/status.sh …`.
+
 ```bash
 npm ci
 npm run build
@@ -105,7 +111,14 @@ Ctrl-C coupe le tunnel ; l'URL meurt avec lui.
 3. Dashboard → **Add a site** → saisis `example.fr` → plan Free → Cloudflare
    affiche **deux serveurs de noms** (ex. `xxx.ns.cloudflare.com`).
 4. Chez le registrar, remplace les serveurs de noms du domaine par ces deux-là.
+   Chez OVH : Noms de domaine → ton domaine → onglet « Serveurs DNS » →
+   « Modifier les serveurs DNS » → « Utiliser mes propres DNS », saisis les
+   deux serveurs Cloudflare **en laissant « IP associée » vide** (ce champ ne
+   sert qu'aux serveurs de noms hébergés sous ton propre domaine).
 5. Attends l'email « example.fr is now active on Cloudflare » (minutes → heures).
+6. Profites-en pour activer la **2FA** sur le registrar et sur Cloudflare (ce
+   domaine devient une ancre d'identité), et vérifie que l'email du compte
+   Cloudflare est **vérifié** (dash → My Profile) — requis pour l'étape 4.
 
 Rien à créer dans la zone DNS : la commande `route dns` de §4 s'en charge.
 
@@ -123,6 +136,9 @@ cloudflared tunnel login
 
 → ouvre le navigateur : connecte-toi, choisis la zone `example.fr`, autorise.
 Un certificat est écrit dans `~/.cloudflared/cert.pem`.
+(Si le bouton Authorize répond « Please verify your email » : l'email du compte
+Cloudflare n'est pas vérifié — dash → My Profile → renvoyer le mail — puis
+relance la commande.)
 
 ```bash
 cloudflared tunnel create icebreakers
@@ -164,39 +180,55 @@ Objectif : personne n'atteint le site sans s'être identifié par email + code
 OTP. Menus au 15/08/2026 (libellés parfois traduits « Applications » /
 « Accès ») :
 
-1. https://one.dash.cloudflare.com → **Zero Trust**. À la première visite,
-   choisis un nom d'équipe (ex. `<ton-pseudo>.cloudflareaccess.com`) — plan
-   **Free** (50 utilisateurs, largement assez ; re-vérifie au passage).
-2. Vérifie la méthode de login : **Settings → Authentication → Login methods**
-   doit lister **One-time PIN** (présent par défaut ; sinon « Add new » →
-   One-time PIN).
-3. **Access → Applications → Add an application → Self-hosted** :
-   - **Application name** : `Icebreakers`
-   - **Session Duration** : `1 week` (une connexion par navigateur et par
-     semaine — confort rétro : la TV et les PC restent connectés)
-   - **Public hostname** : subdomain `jeux`, domain `example.fr`, path vide
-     (= tout le site)
-   - **Add a policy** :
-     - **Policy name** : `Équipe`
-     - **Action** : `Allow`
+L'UI de Cloudflare One bouge souvent — les libellés ci-dessous sont ceux
+d'août 2026 ; en cas de doute, la barre de recherche du dashboard retrouve
+chaque écran par son nom.
+
+1. https://one.dash.cloudflare.com → à la première visite, choisis un nom
+   d'équipe (ex. `<ton-pseudo>.cloudflareaccess.com`) — plan **Free**
+   (50 utilisateurs, largement assez ; re-vérifie au passage).
+2. **Active la méthode « One-time PIN »** (email + code, sans compte) : page
+   des fournisseurs d'identité — selon la version de l'UI : section **Access →
+   Identity providers**, ou **Integrations**, ou recherche `identity
+   providers` — → **Add new** → **One-time PIN**. ⚠️ L'onboarding récent ne
+   pose par défaut que la méthode « Cloudflare » (connexion par compte
+   Cloudflare) : sans cette étape, tes collègues tomberaient sur « Sign in to
+   Cloudflare » et devraient créer un compte.
+3. **Access → Applications → Add an application → Self-hosted and private**
+   (type « Public DNS ») → Continue, puis dans le formulaire :
+   - **Destinations / Public hostname** : subdomain `jeux`, domain
+     `example.fr`, path vide (= tout le site)
+   - **Access policies** → crée une politique (Builder) :
+     - **Policy name** : `Équipe` — **Action** : `Allow`
      - **Include** → **Selector : Emails** → la liste des emails de l'équipe
-       (`<TON_EMAIL>, <EMAIL_COLLEGUE_1>, …`). Variante : « Emails ending
-       in » `@<domaine-de-la-boite>` si tu préfères ouvrir à toute la boîte.
-   - **Login methods** : One-time PIN suffit. Enregistre (**Add application**).
+       (`<TON_EMAIL>, <EMAIL_COLLEGUE_1>, …` — modifiable à tout moment).
+       Variante : « Emails ending in » `@<domaine-de-la-boite>` pour ouvrir à
+       toute la boîte.
+   - **Authentication** : désactive « Accept all available identity
+     providers », sélectionne **One-time PIN seul**, et active « Apply
+     instant authentication » (les utilisateurs arrivent directement au champ
+     email).
+   - **Details** : Name `Icebreakers`, **Session Duration : `1 month`** — avec
+     une rétro toutes les 2 semaines, une session d'1 semaine ferait retaper
+     un code à chaque rétro ; 1 mois = un code une rétro sur deux.
+   - Enregistre.
 4. **Exception monitoring** (sinon UptimeRobot, §8, verra le mur de login au
-   lieu de l'app) : **Add an application → Self-hosted** à nouveau :
-   - **Application name** : `Icebreakers health`
-   - **Public hostname** : subdomain `jeux`, domain `example.fr`, **path
+   lieu de l'app) : **Add an application → Self-hosted and private** à
+   nouveau :
+   - **Destinations** : subdomain `jeux`, domain `example.fr`, **path
      `health`**
-   - **Add a policy** : name `Monitoring`, **Action : Bypass**, **Include →
-     Everyone**.
+   - **Access policies** : name `Monitoring`, **Action : Bypass**, **Include →
+     Selector : Everyone** (une règle Include est obligatoire, Everyone ne
+     demande aucune valeur).
+   - **Details** : Name `Icebreakers health` → enregistre.
    - `/health` ne révèle que `{"ok":true,"uptime":…}` — aucun contenu.
 
 **Test immédiat (critère de done du PRD)** : relance `cloudflared tunnel run
 icebreakers`, puis en **fenêtre privée** : `https://jeux.example.fr` →
 redirection vers `<ton-pseudo>.cloudflareaccess.com`, saisie d'email :
 
-- un email **hors liste** → pas de code / accès refusé ✅
+- un email **hors liste** → aucun code ne part (Cloudflare affiche la même
+  page dans les deux cas pour ne pas révéler qui a accès — anti-énumération) ✅
 - ton email → code reçu, saisi → l'app s'affiche ✅
 - `https://jeux.example.fr/health` sans login → `{"ok":true,…}` ✅
 
@@ -264,10 +296,17 @@ les 10 s, corrige le `.env` et `kickstart`.
   - « Empêcher la suspension d'activité automatique lorsque l'écran est
     éteint » : **activé** / mise en veille : **jamais**.
   - « Démarrer automatiquement après une panne de courant » : **activé**.
-- **FileVault** (Réglages → Confidentialité et sécurité) : s'il est activé, le
-  Mac attend un mot de passe au boot → les daemons ne démarrent pas après une
-  coupure. Pour un serveur de salon : FileVault **désactivé**, ou assume un
-  déverrouillage manuel après chaque coupure.
+- **FileVault** (Réglages → Confidentialité et sécurité ; état : `fdesetup
+  status`) : s'il est activé, l'écran de démarrage est en réalité le
+  déverrouillage du disque chiffré → **rien ne démarre** avant qu'un mot de
+  passe soit tapé (symptôme : Erreur 1033 « Cloudflare Tunnel error » avant
+  login, tout est vert après). Deux choix assumables :
+  - **Désactivé** : récupération 100 % automatique après une coupure de
+    courant — le choix « vrai serveur », au prix d'un disque non chiffré.
+  - **Activé** (recommandé si le Mac sert aussi de machine perso) : après une
+    coupure, l'app reste down jusqu'à un déverrouillage manuel — le réflexe :
+    *alerte UptimeRobot après une coupure = aller taper le mot de passe*, les
+    daemons font le reste. Un redémarrage volontaire ne pose aucun problème.
 - **Mises à jour macOS** (Réglages → Général → Mise à jour de logiciels) :
   installation automatique **hors** créneaux de rétro (un redémarrage relance
   tout, mais pas pendant une partie 🙂).
@@ -305,11 +344,21 @@ en mémoire, volontairement éphémères — rien d'autre à sauver côté app. 
 `~/.cloudflared/` (credentials du tunnel) pour restaurer le montage complet :
 
 ```bash
-tar czf ~/sauvegarde-icebreakers-$(date +%F).tgz -C ~ .cloudflared -C <REPO_DIR> data config.json .env
+cd <REPO_DIR> && mkdir -p data && tar czf ~/sauvegarde-icebreakers-$(date +%F).tgz -C ~ .cloudflared -C <REPO_DIR> data config.json .env
 ```
 
-Restauration = re-dérouler §1 et §6 sur une machine neuve puis déposer ces
-fichiers au même endroit.
+(le `mkdir -p data` couvre le cas « aucun pack encore uploadé ».) L'archive
+contient des **secrets** (mot de passe admin, clés du tunnel) : stocke-la hors
+du Mac, dans un endroit privé — idéalement chiffrée :
+
+```bash
+openssl enc -aes-256-cbc -pbkdf2 -in ~/sauvegarde-icebreakers-<DATE>.tgz -out ~/sauvegarde-icebreakers-<DATE>.tgz.enc
+```
+
+(passphrase dans ton gestionnaire de mots de passe ; déchiffrement : mêmes
+options + `-d`). À refaire après chaque upload de packs (`data/` est la seule
+chose qui vit). Restauration = re-dérouler §1 et §6 sur une machine neuve puis
+déposer ces fichiers au même endroit.
 
 ## 11. Secours : bascule VPS en 30 min (§7.2 « limites honnêtes »)
 
@@ -340,6 +389,8 @@ partie jouable, pack uploadé retrouvé après `docker compose restart`).
 - **Déployer une mise à jour** : `scripts/deploy.sh` (pull → ci → build →
   relance de l'app seule ; le tunnel reste debout).
 - **État** : `scripts/status.sh [https://jeux.example.fr]`.
+- Port de prod non standard (cf. §1) ? Préfixe les deux : `PORT=3010
+  scripts/deploy.sh`, `PORT=3010 scripts/status.sh …`.
 - **Étape 9 de la roadmap** (au bureau) : générer les packs `interne` avec
   l'agent IA de la boîte (prompt en Annexe B du PRD) et les uploader via
   `https://jeux.example.fr/admin` — ils vivent dans `data/packs/` sur le Mac
@@ -369,4 +420,6 @@ partie jouable, pack uploadé retrouvé après `docker compose restart`).
 | UptimeRobot voit le login au lieu de `/health` | L'application Bypass `path: health` manque (§5.4) |
 | Marche à la maison, pas au bureau | Le proxy du bureau — §2 aurait dû le dire tôt ; voir IT, ou option VPS (§11) |
 | Boot du Mac : rien ne démarre | FileVault ? (§7) `sudo launchctl print system/com.icebreakers.app` (§6) |
+| Erreur **1033** « Cloudflare Tunnel error » sur l'URL publique | cloudflared ne tourne pas : Mac verrouillé par FileVault après une coupure ? (§7) sinon `cloudflared.error.log` |
+| Le login affiche « Sign in with Cloudflare » au lieu du champ email | One-time PIN absent des méthodes (§5.2) ou l'app accepte tous les fournisseurs (§5.3 Authentication) |
 | WebSocket coupé en pleine partie | Reconnexion automatique par jeton (PRD §3.4) — vérifier `app.log` si récurrent |
