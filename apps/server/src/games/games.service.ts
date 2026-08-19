@@ -119,6 +119,23 @@ export class GamesService {
     };
   }
 
+  /**
+   * Ids de packs utilisables AU MOMENT du tirage : la sélection stockée est
+   * re-validée (un pack désactivé/supprimé entre-temps est retiré en silence ;
+   * `undefined` = tous les packs actifs du jeu).
+   */
+  private selectionPackIds(room: Room): string[] {
+    const selection = room.selection!;
+    return this.packs.resolvePackIds(selection.game, selection.packIds);
+  }
+
+  private noPacksError(): { ok: false; error: WsError } {
+    return {
+      ok: false,
+      error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' },
+    };
+  }
+
   /** Lance la partie sélectionnée (host:start). */
   start(room: Room): { ok: true } | { ok: false; error: WsError } {
     if (room.status !== 'lobby') {
@@ -153,18 +170,22 @@ export class GamesService {
     if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
     const params = resolveCodenamesParams(selection.paramOverrides);
 
+    const packIds = this.selectionPackIds(room);
+    if (packIds.length === 0) return this.noPacksError();
     const drawn = this.packs.drawCodenamesGrid(
       params.gridSize,
-      selection.contentMode,
+      packIds,
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
       return {
         ok: false,
-        error: { code: 'NO_CONTENT', message: `Il faut au moins ${params.gridSize} mots distincts pour ce mode.` },
+        error: {
+          code: 'NO_CONTENT',
+          message: `Il faut au moins ${params.gridSize} mots distincts dans les packs cochés.`,
+        },
       };
     }
     room.contentRecycled = drawn.recycled;
@@ -187,12 +208,13 @@ export class GamesService {
     if (!room.selection) {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
+    const packIds = this.selectionPackIds(room);
+    if (packIds.length === 0) return this.noPacksError();
     const drawn = this.packs.drawCodenamesGrid(
       game.params.gridSize,
-      room.selection.contentMode,
+      packIds,
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
@@ -218,14 +240,13 @@ export class GamesService {
     const params = resolveSpyfallParams(selection.paramOverrides);
 
     const drawn = this.packs.drawSpyfallTheme(
-      selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = drawn.recycled;
 
@@ -251,9 +272,9 @@ export class GamesService {
     if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
     const params = resolveTabooParams(selection.paramOverrides);
 
-    const cards = this.packs.tabooCards(selection.contentMode);
+    const cards = this.packs.tabooCards(this.selectionPackIds(room));
     if (cards.length < 10) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Pas assez de cartes Taboo pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Pas assez de cartes Taboo dans les packs cochés.' } };
     }
 
     const { state, effects } = initTaboo(playerIds, cards, params, this.engineCtx(room));
@@ -275,14 +296,13 @@ export class GamesService {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
     const drawn = this.packs.drawSpyfallTheme(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = room.contentRecycled || drawn.recycled;
     const next = startNextSpyfallManche(game, { category: drawn.category, grid: drawn.grid }, this.engineCtx(room));
@@ -304,14 +324,13 @@ export class GamesService {
     const params = resolveWavelengthParams(playerIds.length, selection.paramOverrides);
 
     const drawn = this.packs.drawWavelengthEntry(
-      selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = drawn.recycled;
 
@@ -333,14 +352,13 @@ export class GamesService {
     const params = resolveItoParams(selection.paramOverrides);
 
     const drawn = this.packs.drawItoEntry(
-      selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = drawn.recycled;
 
@@ -362,14 +380,13 @@ export class GamesService {
     if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
 
     const drawn = this.packs.drawUndercoverEntry(
-      selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = drawn.recycled;
 
@@ -391,14 +408,13 @@ export class GamesService {
     const params = resolveJustOneParams(selection.paramOverrides);
 
     const drawn = this.packs.drawJustOneEntry(
-      selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = drawn.recycled;
 
@@ -505,14 +521,13 @@ export class GamesService {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
     const drawn = this.packs.drawWavelengthEntry(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = room.contentRecycled || drawn.recycled;
     const next = startNextWavelengthTurn(game, drawn.entry, this.engineCtx(room));
@@ -535,14 +550,13 @@ export class GamesService {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
     const drawn = this.packs.drawItoEntry(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = room.contentRecycled || drawn.recycled;
     const next = startNextItoManche(game, drawn.entry.theme, this.engineCtx(room));
@@ -567,10 +581,9 @@ export class GamesService {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
     const drawn = this.packs.drawItoEntry(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
@@ -606,14 +619,13 @@ export class GamesService {
     }
 
     const drawn = this.packs.drawUndercoverEntry(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = room.contentRecycled || drawn.recycled;
 
@@ -646,14 +658,13 @@ export class GamesService {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
     const drawn = this.packs.drawJustOneEntry(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {
-      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun pack de contenu disponible pour ce mode.' } };
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Plus aucun pack de contenu sélectionné pour ce jeu.' } };
     }
     room.contentRecycled = room.contentRecycled || drawn.recycled;
     const { state, effects } = startNextJustOneManche(game, drawn.entry.word);
@@ -675,10 +686,9 @@ export class GamesService {
       return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
     }
     const drawn = this.packs.drawJustOneEntry(
-      room.selection.contentMode,
+      this.selectionPackIds(room),
       room.usedEntryIds,
       room.rng,
-      this.appConfig.config.randomWeight,
       room.teamName,
     );
     if ('error' in drawn) {

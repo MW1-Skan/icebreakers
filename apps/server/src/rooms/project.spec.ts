@@ -46,7 +46,7 @@ function makeRoom(game: UndercoverState | undefined, status: Room['status'] = 'i
     playerTokens,
     mirrorConnected: false,
     status,
-    selection: { game: 'undercover', contentMode: 'normal', paramOverrides: {} },
+    selection: { game: 'undercover', paramOverrides: {} },
     game,
     sessionRecap: [],
     usedEntryIds: new Set(),
@@ -59,7 +59,8 @@ function makeRoom(game: UndercoverState | undefined, status: Room['status'] = 'i
 
 const PCTX: ProjectionCtx = {
   timers: [],
-  availableModes: ['normal'],
+  availablePacks: [{ id: 'test-pack', name: 'Pack de test', mode: 'normal', entriesCount: 10 }],
+  selectedPackIds: ['test-pack'],
   config: { siteName: 'Icebreakers', internalModeLabel: 'Interne' },
   timerDefaults: { discussSeconds: 60, voteSeconds: 45, whiteGuessSeconds: 30 },
 };

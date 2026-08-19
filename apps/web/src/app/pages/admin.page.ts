@@ -1,12 +1,15 @@
 /**
  * Page /admin (PRD §4.3) : outil de devs — login simple, liste des packs
  * (jeu, mode, entrées, actif/inactif), upload JSON avec rapport d'erreurs
- * lisible, activation/désactivation, suppression, templates par jeu.
+ * lisible, activation/désactivation, suppression, templates par jeu, et
+ * éditeur in-app (éditer un pack à chaud, dupliquer un builtin, créer depuis
+ * un template) — la sauvegarde passe par le flux d'upload/validation existant.
  */
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { AdminPackInfo, AdminUploadResult, GameId } from '@icebreakers/shared';
+import type { AdminPackContent, AdminPackInfo, AdminUploadResult, GameId, Pack } from '@icebreakers/shared';
+import { PackEditorComponent, type PackEditorKind } from '../components/pack-editor.component';
 
 const TOKEN_KEY = 'icebreakers:admin';
 const GAME_EMOJI: Record<GameId, string> = {
@@ -18,11 +21,11 @@ const GAME_EMOJI: Record<GameId, string> = {
   taboo: '⏱️',
   codenames: '🗝️',
 };
-const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall', 'taboo'];
+const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall', 'taboo', 'codenames'];
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PackEditorComponent],
   template: `
     <main class="admin">
       <header>
@@ -42,6 +45,16 @@ const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall'
             <p class="error" role="alert">{{ e }}</p>
           }
         </form>
+      } @else if (editing(); as ed) {
+        <app-pack-editor
+          [kind]="ed.kind"
+          [initial]="ed.pack"
+          [existingIds]="packIds()"
+          [serverErrors]="editorErrors()"
+          [busy]="busy()"
+          (save)="saveEdited($event)"
+          (cancelled)="closeEditor()"
+        />
       } @else {
         <section class="card">
           <h2>Ajouter un pack</h2>
@@ -50,6 +63,15 @@ const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall'
             <code>data/packs/</code> — jamais dans Git. Ré-uploader un id existant le remplace.
           </p>
           <input type="file" accept=".json,application/json" (change)="onFile($event)" [disabled]="busy()" />
+          <p class="muted create-row">
+            Ou partir du template d'un jeu :
+            <select name="create-game" [(ngModel)]="createGame">
+              @for (game of games; track game) {
+                <option [value]="game">{{ gameEmoji[game] }} {{ game }}</option>
+              }
+            </select>
+            <button (click)="createPack()" [disabled]="busy()">Créer un pack</button>
+          </p>
           @if (uploadReport(); as report) {
             @if (report.ok) {
               <p class="success">
@@ -110,9 +132,13 @@ const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall'
                       {{ pack.enabled ? '🟢 Actif' : '⚫ Inactif' }}
                     </button>
                   </td>
-                  <td>
+                  <td class="actions">
                     @if (pack.source === 'data') {
+                      <button (click)="edit(pack)" [disabled]="busy()">Éditer</button>
                       <button class="danger" (click)="remove(pack)" [disabled]="busy()">Supprimer</button>
+                    } @else {
+                      <!-- Un builtin ne s'édite pas dans le repo : on le duplique en pack à chaud. -->
+                      <button (click)="duplicate(pack)" [disabled]="busy()">Dupliquer</button>
                     }
                   </td>
                 </tr>
@@ -169,6 +195,18 @@ const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall'
       .templates a {
         margin-right: 0.8rem;
       }
+      .create-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .actions {
+        white-space: nowrap;
+      }
+      .actions button {
+        margin-left: 0.4rem;
+      }
       input[type='file'] {
         margin: 0.6rem 0;
       }
@@ -211,6 +249,12 @@ export class AdminPage {
   readonly error = signal<string | null>(null);
   readonly busy = signal(false);
   passwordInput = '';
+
+  /** Éditeur ouvert (remplace les deux cartes tant qu'il est actif). */
+  readonly editing = signal<{ kind: PackEditorKind; pack: Pack } | null>(null);
+  readonly editorErrors = signal<string[] | null>(null);
+  readonly packIds = computed(() => this.packs().map((p) => p.id));
+  createGame: GameId = 'undercover';
 
   readonly games = GAMES;
   readonly gameEmoji = GAME_EMOJI;
@@ -292,6 +336,79 @@ export class AdminPage {
     } finally {
       this.busy.set(false);
       input.value = '';
+    }
+  }
+
+  // ─── Éditeur (édition à chaud, duplication de builtin, création) ──────────
+
+  async edit(pack: AdminPackInfo): Promise<void> {
+    await this.openEditor('edit', pack.id);
+  }
+
+  async duplicate(pack: AdminPackInfo): Promise<void> {
+    await this.openEditor('duplicate', pack.id);
+  }
+
+  private async openEditor(kind: PackEditorKind, id: string): Promise<void> {
+    this.busy.set(true);
+    try {
+      const content = await this.api<AdminPackContent>(`/api/admin/packs/${id}`);
+      this.editorErrors.set(null);
+      this.editing.set({ kind, pack: content.pack });
+    } catch (err) {
+      this.error.set(err instanceof Error ? err.message : String(err));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async createPack(): Promise<void> {
+    this.busy.set(true);
+    try {
+      // Endpoint public des templates : chaque template est un pack valide.
+      const response = await fetch(`/api/packs/template/${this.createGame}`);
+      if (!response.ok) throw new Error(`Erreur ${response.status}`);
+      const template = (await response.json()) as Pack;
+      this.editorErrors.set(null);
+      this.editing.set({ kind: 'create', pack: template });
+    } catch (err) {
+      this.error.set(err instanceof Error ? err.message : String(err));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  closeEditor(): void {
+    this.editing.set(null);
+    this.editorErrors.set(null);
+  }
+
+  /**
+   * Sauvegarde de l'éditeur : le JSON repasse par le flux d'upload existant
+   * (validation Zod serveur + remplacement atomique) — un contenu invalide est
+   * refusé avec le rapport, rien n'est écrit et l'éditeur reste ouvert.
+   */
+  async saveEdited(pack: Record<string, unknown>): Promise<void> {
+    this.busy.set(true);
+    this.editorErrors.set(null);
+    try {
+      const form = new FormData();
+      form.append(
+        'file',
+        new File([JSON.stringify(pack, null, 2)], `${String(pack['id'])}.json`, { type: 'application/json' }),
+      );
+      const report = await this.api<AdminUploadResult>('/api/admin/packs', { method: 'POST', body: form });
+      if (report.ok) {
+        this.editing.set(null);
+        this.uploadReport.set(report);
+        await this.refresh();
+      } else {
+        this.editorErrors.set(report.errors);
+      }
+    } catch (err) {
+      this.editorErrors.set([err instanceof Error ? err.message : String(err)]);
+    } finally {
+      this.busy.set(false);
     }
   }
 

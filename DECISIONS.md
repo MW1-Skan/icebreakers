@@ -428,6 +428,62 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
 - **admin.spec e2e** passe de 6 à 7 packs intégrés (pack builtin
   `codenames-normal-01`, 80 mots grand public).
 
+## Multi-sélection de packs par partie (remplace les modes de contenu — demande directe)
+
+- **`host:selectGame` transporte `packIds: string[]`** à la place de `contentMode`
+  (§3.5 caduc). Absent ou vide → défaut = tous les packs actifs du jeu, stocké
+  comme « défaut » (résolu à CHAQUE tirage : un pack uploadé après coup intègre
+  le pool tant que le host n'a pas touché aux cases). Les ids inconnus,
+  inactifs ou d'un autre jeu sont filtrés EN SILENCE à la sélection comme au
+  lancement (un pack désactivé/supprimé entre-temps sort de la sélection ;
+  plus aucun pack → blocker au lobby et NO_CONTENT au tirage).
+- **« Rien coché » est un état d'UI local** : le protocole ne peut pas le
+  distinguer du défaut (« vide → tous »), donc le client n'envoie jamais de
+  sélection vide — il bloque le lancement localement (« Coche au moins un
+  pack… »). L'invariant serveur tient sans lui : une sélection résolue vide ne
+  lance jamais rien.
+- **Tirage uniforme PAR ENTRÉE** dans l'union des packs cochés (pas « un pack
+  au hasard puis une entrée » — un petit pack n'est pas surreprésenté, testé
+  statistiquement). Anti-répétition par élément inchangée (`packId#index`).
+  Spyfall : les items des thèmes de même nom fusionnent entre packs cochés.
+  Codenames : mots dédoublonnés inter-packs (la variante jamais jouée porte
+  l'anti-répétition) et blocker chiffré si l'union compte moins de mots
+  distincts que la grille.
+- **`availableModes` → `availablePacks`** dans les projections (id, nom, mode,
+  nb d'entrées — JAMAIS le contenu des entrées). Les noms de packs deviennent
+  visibles des joueurs/TV — assumé. Le tag `mode: interne|normal` reste sur
+  les packs (vocabulaire §4.5) : badge dans l'admin et la modale, libellé
+  toujours servi par `internalModeLabel`.
+- **`randomWeight` supprimé** (config d'instance + signatures de tirage) : la
+  pondération Random n'a plus d'objet, l'union des packs cochés la remplace.
+  Un `config.json` existant qui porte encore la clé est simplement ignoré.
+
+## Éditeur de packs dans /admin (la « v2 » annoncée par le §4.3 — demande directe)
+
+- **Sauvegarde = le flux d'upload existant** : l'éditeur construit le JSON du
+  pack et le POSTe en multipart sur `/api/admin/packs` (un `File` fabriqué
+  côté client) — même validation Zod, même rapport d'erreurs lisible, même
+  remplacement atomique. Contenu invalide → rien n'est écrit et l'éditeur
+  reste ouvert avec le rapport.
+- **`id` et `game` immuables** : champ id désactivé en édition ; le jeu n'est
+  jamais saisi (il vient du pack source ou du template). « Dupliquer en pack
+  à chaud » (packs builtin uniquement — c'est la voie officielle pour
+  « modifier » un builtin sans passer par le repo) précharge l'éditeur avec
+  l'id `<id>-copie` ; un id déjà pris est refusé côté client AVANT envoi pour
+  éviter un remplacement accidentel (le serveur protège de toute façon les
+  ids builtin).
+- **`difficulty` préservée, pas éditée** : le champ optionnel suit sa ligne
+  telle quelle lors des modifications ; les lignes ajoutées n'en portent pas.
+  Les champs édités sont exactement ceux de la demande (a/b, left/right,
+  word, category+items, theme, word + 3 interdits).
+- **Spyfall : items en textarea** (un item par ligne, lignes vides ignorées)
+  plutôt qu'un input par item — un thème porte 8 items minimum.
+- **Créer un pack** : choix du jeu → `GET /api/packs/template/<jeu>` (endpoint
+  public existant, chaque template est un pack valide) précharge l'éditeur.
+  `GET /api/admin/packs/:id` (AdminGuard) sert le contenu complet pour
+  éditer/dupliquer — builtin compris ; `lang` et `author` sont repris tels
+  quels du pack source.
+
 ## Retours du premier déploiement réel (intégrés à DEPLOY.md)
 
 - **Cloudflare One, UI d'août 2026** : plus de section « Settings →

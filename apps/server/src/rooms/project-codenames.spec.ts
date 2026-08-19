@@ -26,7 +26,7 @@ function makeRoom(game: GameState): Room {
     playerTokens: new Map(),
     mirrorConnected: false,
     status: 'inGame',
-    selection: { game: 'codenames', contentMode: 'normal', paramOverrides: {} },
+    selection: { game: 'codenames', paramOverrides: {} },
     game,
     sessionRecap: [],
     usedEntryIds: new Set(),
@@ -39,7 +39,9 @@ function makeRoom(game: GameState): Room {
 
 const PCTX: ProjectionCtx = {
   timers: [],
-  availableModes: ['normal'],
+  availablePacks: [{ id: 'test-pack', name: 'Pack de test', mode: 'normal', entriesCount: 30 }],
+  selectedPackIds: ['test-pack'],
+  codenamesDistinctWords: 30,
   config: { siteName: 'Icebreakers', internalModeLabel: 'Interne' },
   timerDefaults: { discussSeconds: 60, voteSeconds: 45, whiteGuessSeconds: 30 },
 };

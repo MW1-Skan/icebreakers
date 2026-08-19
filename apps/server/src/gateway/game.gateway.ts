@@ -275,55 +275,34 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (ctx.room.status === 'inGame') {
       return { ok: false, error: { code: 'ALREADY_IN_GAME', message: 'Termine la partie en cours d’abord.' } };
     }
+    // Validation des packs cochés : ids inconnus/inactifs/d'un autre jeu filtrés
+    // en silence ; absent ou vide → défaut = tous les packs actifs du jeu.
+    const requested = parsed.data.packIds;
+    const packIds =
+      !requested || requested.length === 0
+        ? undefined
+        : this.packs.resolvePackIds(parsed.data.game, requested);
     switch (parsed.data.game) {
       case 'undercover':
-        ctx.room.selection = {
-          game: 'undercover',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'undercover', packIds, paramOverrides: parsed.data.params };
         break;
       case 'justone':
-        ctx.room.selection = {
-          game: 'justone',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'justone', packIds, paramOverrides: parsed.data.params };
         break;
       case 'wavelength':
-        ctx.room.selection = {
-          game: 'wavelength',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'wavelength', packIds, paramOverrides: parsed.data.params };
         break;
       case 'ito':
-        ctx.room.selection = {
-          game: 'ito',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'ito', packIds, paramOverrides: parsed.data.params };
         break;
       case 'spyfall':
-        ctx.room.selection = {
-          game: 'spyfall',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'spyfall', packIds, paramOverrides: parsed.data.params };
         break;
       case 'taboo':
-        ctx.room.selection = {
-          game: 'taboo',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'taboo', packIds, paramOverrides: parsed.data.params };
         break;
       case 'codenames':
-        ctx.room.selection = {
-          game: 'codenames',
-          contentMode: parsed.data.contentMode,
-          paramOverrides: parsed.data.params,
-        };
+        ctx.room.selection = { game: 'codenames', packIds, paramOverrides: parsed.data.params };
         break;
     }
     this.rooms.touch(ctx.room);
@@ -641,9 +620,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ─── Diffusion des projections ────────────────────────────────────────────
 
   private projectionCtx(room: Room): ProjectionCtx {
+    const game = room.selection?.game ?? 'undercover';
+    const selectedPackIds = this.packs.resolvePackIds(game, room.selection?.packIds);
     return {
       timers: this.timers.viewsFor(room.code),
-      availableModes: this.packs.availableModesFor(room.selection?.game ?? 'undercover'),
+      availablePacks: this.packs.packsPublicFor(game),
+      selectedPackIds,
+      codenamesDistinctWords:
+        game === 'codenames' ? this.packs.codenamesDistinctWordCount(selectedPackIds) : undefined,
       config: {
         siteName: this.appConfig.config.siteName,
         internalModeLabel: this.appConfig.config.internalModeLabel,
