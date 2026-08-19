@@ -2,7 +2,7 @@
  * ClientView — l'UNIQUE objet envoyé à un client (`room:state`, PRD §6.3).
  * L'UI de chaque écran est une fonction pure de cet objet.
  */
-import type { ContentMode, GameId, GameResult, PlayerId, RoomStatus, ViewerKind } from './types';
+import type { GameId, GameResult, PackMode, PlayerId, RoomStatus, ViewerKind } from './types';
 import type { UndercoverParams } from './undercover/types';
 import type { UndercoverMeView, UndercoverPublicView } from './undercover/view';
 import type { JustOneParams } from './justone/types';
@@ -60,14 +60,25 @@ export type GameMeView = {
   codenames?: CodenamesMeView;
 };
 
+/**
+ * Pack listé dans la modale de configuration (info publique : nom, mode,
+ * taille — JAMAIS le contenu des entrées).
+ */
+export interface PackPublicView {
+  id: string;
+  name: string;
+  mode: PackMode;
+  entriesCount: number;
+}
+
 export type GameSelectionView =
-  | { game: 'undercover'; contentMode: ContentMode; params: UndercoverParams }
-  | { game: 'justone'; contentMode: ContentMode; params: JustOneParams }
-  | { game: 'wavelength'; contentMode: ContentMode; params: WavelengthParams }
-  | { game: 'ito'; contentMode: ContentMode; params: ItoParams }
-  | { game: 'spyfall'; contentMode: ContentMode; params: SpyfallParams }
-  | { game: 'taboo'; contentMode: ContentMode; params: TabooParams }
-  | { game: 'codenames'; contentMode: ContentMode; params: CodenamesParams };
+  | { game: 'undercover'; packIds: string[]; params: UndercoverParams }
+  | { game: 'justone'; packIds: string[]; params: JustOneParams }
+  | { game: 'wavelength'; packIds: string[]; params: WavelengthParams }
+  | { game: 'ito'; packIds: string[]; params: ItoParams }
+  | { game: 'spyfall'; packIds: string[]; params: SpyfallParams }
+  | { game: 'taboo'; packIds: string[]; params: TabooParams }
+  | { game: 'codenames'; packIds: string[]; params: CodenamesParams };
 
 /** Projection publique du salon — strictement identique host / miroir / joueurs. */
 export interface RoomPublicView {
@@ -78,8 +89,8 @@ export interface RoomPublicView {
   /** Pause auto quand l'animateur est déconnecté (§3.4). */
   paused: boolean;
   selection?: GameSelectionView;
-  /** Modes de contenu disposant d'au moins un pack pour le jeu sélectionné. */
-  availableModes: ContentMode[];
+  /** Packs ACTIFS du jeu sélectionné (la sélection cochée vit dans `selection.packIds`). */
+  availablePacks: PackPublicView[];
   config: { siteName: string; internalModeLabel: string };
   /** Récap de soirée (par jeu, sans agrégation cross-jeux — §3.1). */
   recap: GameResult[];

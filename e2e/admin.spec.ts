@@ -50,12 +50,16 @@ test('administration des packs : login, upload, activation, suppression', async 
   await expect(row).toContainText('à chaud');
   await expect(row.getByRole('button', { name: '🟢 Actif' })).toBeVisible();
 
-  // …le mode Interne apparaît au lobby de Just One sans toucher au code
+  // …le pack apparaît COCHÉ dans la modale de Just One sans toucher au code
   const hostPage = await page.context().newPage();
   await hostPage.goto('/');
   await hostPage.getByRole('button', { name: 'Créer un salon' }).click();
   await hostPage.getByRole('button', { name: /Just One/ }).click();
-  await expect(hostPage.locator('#mode option', { hasText: 'Interne' })).toHaveCount(1);
+  const packItem = hostPage.locator('.pack-item', { hasText: 'Pack e2e' });
+  await expect(packItem).toBeVisible();
+  await expect(packItem.locator('input[type="checkbox"]')).toBeChecked();
+  await expect(packItem.locator('.pack-mode')).toHaveText('Interne'); // libellé de config, pas le tag brut
+  await expect(packItem.locator('.pack-count')).toHaveText('2 entrées');
   await hostPage.close();
 
   // ── Désactivation : le pack sort des tirages (persistée côté serveur) ─────

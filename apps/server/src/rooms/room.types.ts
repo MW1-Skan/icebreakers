@@ -5,12 +5,12 @@
 import type {
   CodenamesParams,
   CodenamesState,
-  ContentMode,
   GameResult,
   ItoParams,
   ItoState,
   JustOneParams,
   JustOneState,
+  PackPublicView,
   Player,
   PlayerId,
   Rng,
@@ -35,15 +35,19 @@ export type GameState =
   | TabooState
   | CodenamesState;
 
-/** Surcharges explicites du host ; les défauts sont résolus au lancement. */
+/**
+ * Surcharges explicites du host ; les défauts sont résolus au lancement.
+ * `packIds` : packs cochés — `undefined` = tous les packs actifs du jeu,
+ * résolu à CHAQUE tirage (la sélection est re-validée, cf. resolvePackIds).
+ */
 export type GameSelection =
-  | { game: 'undercover'; contentMode: ContentMode; paramOverrides: Partial<UndercoverParams> }
-  | { game: 'justone'; contentMode: ContentMode; paramOverrides: Partial<JustOneParams> }
-  | { game: 'wavelength'; contentMode: ContentMode; paramOverrides: Partial<WavelengthParams> }
-  | { game: 'ito'; contentMode: ContentMode; paramOverrides: Partial<ItoParams> }
-  | { game: 'spyfall'; contentMode: ContentMode; paramOverrides: Partial<SpyfallParams> }
-  | { game: 'taboo'; contentMode: ContentMode; paramOverrides: Partial<TabooParams> }
-  | { game: 'codenames'; contentMode: ContentMode; paramOverrides: Partial<CodenamesParams> };
+  | { game: 'undercover'; packIds?: string[]; paramOverrides: Partial<UndercoverParams> }
+  | { game: 'justone'; packIds?: string[]; paramOverrides: Partial<JustOneParams> }
+  | { game: 'wavelength'; packIds?: string[]; paramOverrides: Partial<WavelengthParams> }
+  | { game: 'ito'; packIds?: string[]; paramOverrides: Partial<ItoParams> }
+  | { game: 'spyfall'; packIds?: string[]; paramOverrides: Partial<SpyfallParams> }
+  | { game: 'taboo'; packIds?: string[]; paramOverrides: Partial<TabooParams> }
+  | { game: 'codenames'; packIds?: string[]; paramOverrides: Partial<CodenamesParams> };
 
 export interface Room {
   code: string; // "KZTR"
@@ -70,7 +74,12 @@ export interface Room {
 /** Données contextuelles publiques nécessaires à la projection (timers, config…). */
 export interface ProjectionCtx {
   timers: TimerView[];
-  availableModes: ContentMode[];
+  /** Packs ACTIFS du jeu sélectionné (liste publique : noms, modes, tailles). */
+  availablePacks: PackPublicView[];
+  /** Sélection résolue : ids cochés encore existants/actifs (défaut = tous). */
+  selectedPackIds: string[];
+  /** Codenames : mots distincts dans l'union des packs cochés (blocker grille). */
+  codenamesDistinctWords?: number;
   config: { siteName: string; internalModeLabel: string };
   timerDefaults: { discussSeconds: number; voteSeconds: number; whiteGuessSeconds: number };
 }

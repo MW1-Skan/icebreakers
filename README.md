@@ -146,6 +146,13 @@ Tout le contenu vit dans des packs JSON validés par Zod (enveloppe commune +
 entrées par jeu). Un pack invalide est rejeté avec un rapport lisible — jamais
 de crash. **Ajouter du contenu ne demande aucune modification de code.**
 
+Au lancement d'une partie, la modale du jeu liste les **packs actifs** (nom,
+badge de mode, nombre d'entrées), **tous cochés par défaut** — au moins un
+requis. Le tirage puise **uniformément par entrée dans l'union des packs
+cochés** (un petit pack n'est pas surreprésenté), avec l'anti-répétition
+intra-salon habituelle ; Spyfall fusionne les thèmes de même nom entre packs
+cochés.
+
 ### Page d'administration (`/admin`)
 
 Protégée par un mot de passe simple — variable d'environnement
@@ -156,7 +163,7 @@ Protégée par un mot de passe simple — variable d'environnement
   lisible ; écrit dans `data/packs/` (survit au redémarrage, jamais dans Git),
   jouable aussitôt. Ré-uploader un id existant remplace le pack.
 - **Activer/désactiver** n'importe quel pack (persisté) — un pack inactif sort
-  des tirages et des modes proposés.
+  des tirages et de la liste proposée dans la modale des jeux.
 - **Supprimer** les packs ajoutés à chaud (les packs intégrés se désactivent).
 - **Télécharger un template** vide par jeu, prêt à remplir.
 

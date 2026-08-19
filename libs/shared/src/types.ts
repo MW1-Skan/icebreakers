@@ -23,9 +23,6 @@ export type GameId = 'undercover' | 'wavelength' | 'justone' | 'spyfall' | 'ito'
 /** Étiquette de mode d'un pack — volontairement générique (PRD §4.5). */
 export type PackMode = 'interne' | 'normal';
 
-/** Mode de contenu choisi au lancement d'une partie (PRD §3.5). */
-export type ContentMode = 'interne' | 'normal' | 'random';
-
 /** Une ligne du récap de soirée (un jeu joué, PRD §3.1). */
 export interface GameResult {
   game: GameId;

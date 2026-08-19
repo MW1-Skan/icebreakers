@@ -11,12 +11,11 @@ import { entryElementId, normalizeText, shuffled, validatePack } from '../shared
 import type {
   AdminPackInfo,
   AdminUploadResult,
-  ContentMode,
   GameId,
   ItoPackEntry,
   JustOnePackEntry,
   Pack,
-  PackMode,
+  PackPublicView,
   Rng,
   SpyfallPackEntry,
   TabooCard,
@@ -50,7 +49,6 @@ export interface DrawnElement<E> {
 interface IndexedElement {
   elementId: string;
   packId: string;
-  mode: PackMode;
   index: number;
 }
 
@@ -146,102 +144,105 @@ export class PacksService implements OnModuleInit {
     }
   }
 
-  /** Packs ACTIFS uniquement — les inactifs n'alimentent ni tirages ni modes. */
-  packsFor(game: GameId, mode?: PackMode): Pack[] {
+  /** Packs ACTIFS d'un jeu — les inactifs n'alimentent ni tirages ni listes. */
+  packsFor(game: GameId): Pack[] {
     return [...this.packs.values()]
-      .filter((p) => p.enabled && p.pack.game === game && (mode === undefined || p.pack.mode === mode))
+      .filter((p) => p.enabled && p.pack.game === game)
       .map((p) => p.pack);
   }
 
-  /** Modes de contenu réellement disponibles pour un jeu (pilote l'UI host). */
-  availableModesFor(game: GameId): ContentMode[] {
-    const modes: ContentMode[] = [];
-    if (this.packsFor(game, 'interne').length > 0) modes.push('interne');
-    if (this.packsFor(game, 'normal').length > 0) modes.push('normal');
-    if (modes.length === 2) modes.push('random');
-    return modes;
+  /**
+   * Ids demandés → ids réellement utilisables (existants, ACTIFS, du bon jeu).
+   * `undefined` = défaut : tous les packs actifs du jeu. Un tableau explicite
+   * est filtré en silence (pack désactivé/supprimé entre-temps) — vide à
+   * l'arrivée, c'est au caller de bloquer (blocker lobby, NO_CONTENT au tirage).
+   */
+  resolvePackIds(game: GameId, ids?: string[]): string[] {
+    const active = this.packsFor(game).map((p) => p.id);
+    if (ids === undefined) return active;
+    const allowed = new Set(active);
+    return ids.filter((id) => allowed.has(id));
+  }
+
+  /** Liste publique des packs actifs d'un jeu (modale de config, projections). */
+  packsPublicFor(game: GameId): PackPublicView[] {
+    return this.packsFor(game).map((p) => ({
+      id: p.id,
+      name: p.name,
+      mode: p.mode,
+      entriesCount: p.entries.length,
+    }));
   }
 
   drawUndercoverEntry(
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): DrawnElement<UndercoverPackEntry> | { error: 'NO_CONTENT' } {
-    return this.drawEntry<UndercoverPackEntry>('undercover', contentMode, usedEntryIds, rng, randomWeight, teamName);
+    return this.drawEntry<UndercoverPackEntry>('undercover', packIds, usedEntryIds, rng, teamName);
   }
 
   drawJustOneEntry(
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): DrawnElement<JustOnePackEntry> | { error: 'NO_CONTENT' } {
-    return this.drawEntry<JustOnePackEntry>('justone', contentMode, usedEntryIds, rng, randomWeight, teamName);
+    return this.drawEntry<JustOnePackEntry>('justone', packIds, usedEntryIds, rng, teamName);
   }
 
   drawWavelengthEntry(
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): DrawnElement<WavelengthPackEntry> | { error: 'NO_CONTENT' } {
-    return this.drawEntry<WavelengthPackEntry>('wavelength', contentMode, usedEntryIds, rng, randomWeight, teamName);
+    return this.drawEntry<WavelengthPackEntry>('wavelength', packIds, usedEntryIds, rng, teamName);
   }
 
   drawItoEntry(
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): DrawnElement<ItoPackEntry> | { error: 'NO_CONTENT' } {
-    return this.drawEntry<ItoPackEntry>('ito', contentMode, usedEntryIds, rng, randomWeight, teamName);
-  }
-
-  private modesInScope(contentMode: ContentMode): PackMode[] {
-    return contentMode === 'random' ? ['interne', 'normal'] : [contentMode];
+    return this.drawEntry<ItoPackEntry>('ito', packIds, usedEntryIds, rng, teamName);
   }
 
   /**
    * Spyfall : tire un THÈME (anti-répétition sur l'entrée), puis construit la
-   * grille = union des items de ce thème sur tous les packs actifs du mode
-   * (fiche 5.4 — en Random, les items internes et normaux se mélangent).
+   * grille = union des items de ce thème sur les packs COCHÉS (fiche 5.4 —
+   * les thèmes de même nom fusionnent entre packs).
    */
   drawSpyfallTheme(
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): (DrawnElement<SpyfallPackEntry> & { category: string; grid: string[] }) | { error: 'NO_CONTENT' } {
-    const drawn = this.drawEntry<SpyfallPackEntry>('spyfall', contentMode, usedEntryIds, rng, randomWeight, teamName);
+    const drawn = this.drawEntry<SpyfallPackEntry>('spyfall', packIds, usedEntryIds, rng, teamName);
     if ('error' in drawn) return drawn;
     return {
       ...drawn,
       category: drawn.entry.category,
-      grid: this.spyfallGridFor(drawn.entry.category, contentMode),
+      grid: this.spyfallGridFor(drawn.entry.category, packIds),
     };
   }
 
-  /** Union dédupliquée (normalisée) des items d'un thème sur les packs du mode. */
-  spyfallGridFor(category: string, contentMode: ContentMode): string[] {
+  /** Union dédupliquée (normalisée) des items d'un thème sur les packs cochés. */
+  spyfallGridFor(category: string, packIds: string[]): string[] {
     const normalizedCategory = normalizeText(category);
     const seen = new Set<string>();
     const grid: string[] = [];
-    for (const mode of this.modesInScope(contentMode)) {
-      for (const pack of this.packsFor('spyfall', mode)) {
-        for (const entry of pack.entries as SpyfallPackEntry[]) {
-          if (normalizeText(entry.category) !== normalizedCategory) continue;
-          for (const item of entry.items) {
-            const key = normalizeText(item);
-            if (!seen.has(key)) {
-              seen.add(key);
-              grid.push(item);
-            }
+    for (const pack of this.activePacks('spyfall', packIds)) {
+      for (const entry of pack.entries as SpyfallPackEntry[]) {
+        if (normalizeText(entry.category) !== normalizedCategory) continue;
+        for (const item of entry.items) {
+          const key = normalizeText(item);
+          if (!seen.has(key)) {
+            seen.add(key);
+            grid.push(item);
           }
         }
       }
@@ -250,39 +251,47 @@ export class PacksService implements OnModuleInit {
   }
 
   /**
-   * Taboo : le deck entier du mode (union, dédupliqué par mot). Le jeu consomme
-   * des dizaines de cartes par partie — l'anti-répétition par élément ne
-   * s'applique pas (cf. DECISIONS.md).
+   * Taboo : le deck entier des packs cochés (union, dédupliqué par mot). Le jeu
+   * consomme des dizaines de cartes par partie — l'anti-répétition par élément
+   * ne s'applique pas (cf. DECISIONS.md).
    */
-  tabooCards(contentMode: ContentMode): TabooCard[] {
+  tabooCards(packIds: string[]): TabooCard[] {
     const seen = new Set<string>();
     const cards: TabooCard[] = [];
-    for (const mode of this.modesInScope(contentMode)) {
-      for (const pack of this.packsFor('taboo', mode)) {
-        for (const entry of pack.entries as Array<{ word: string; forbidden: string[] }>) {
-          const key = normalizeText(entry.word);
-          if (!seen.has(key)) {
-            seen.add(key);
-            cards.push({ word: entry.word, forbidden: [...entry.forbidden] });
-          }
+    for (const pack of this.activePacks('taboo', packIds)) {
+      for (const entry of pack.entries as Array<{ word: string; forbidden: string[] }>) {
+        const key = normalizeText(entry.word);
+        if (!seen.has(key)) {
+          seen.add(key);
+          cards.push({ word: entry.word, forbidden: [...entry.forbidden] });
         }
       }
     }
     return cards;
   }
 
+  /** Codenames : mots distincts (normalisés) dans l'union des packs cochés (blocker grille). */
+  codenamesDistinctWordCount(packIds: string[]): number {
+    const seen = new Set<string>();
+    for (const pack of this.activePacks('codenames', packIds)) {
+      for (const entry of pack.entries as Array<{ word: string }>) {
+        seen.add(normalizeText(entry.word));
+      }
+    }
+    return seen.size;
+  }
+
   /**
    * Codenames : tire `count` MOTS DISTINCTS (normalisés) pour une grille, en
    * privilégiant les éléments jamais joués (anti-répétition intra-salon) puis
    * en recyclant si besoin. NO_CONTENT s'il n'existe pas assez de mots
-   * distincts, tous packs actifs du mode confondus.
+   * distincts dans l'union des packs cochés.
    */
   drawCodenamesGrid(
     count: number,
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): { words: string[]; recycled: boolean } | { error: 'NO_CONTENT' } {
     void teamName; // anti-répétition inter-rétros : par élément, non pertinente pour une grille entière
@@ -290,14 +299,11 @@ export class PacksService implements OnModuleInit {
       elementId: string;
       word: string;
       normalized: string;
-      mode: PackMode;
     }
-    const byMode = (mode: PackMode): Candidate[] =>
-      this.indexElements('codenames', mode).map((e) => {
-        const entry = this.packs.get(e.packId)!.pack.entries[e.index] as { word: string };
-        return { elementId: e.elementId, word: entry.word, normalized: normalizeText(entry.word), mode };
-      });
-    const scope = this.modesInScope(contentMode).flatMap(byMode);
+    const scope: Candidate[] = this.indexElements('codenames', packIds).map((e) => {
+      const entry = this.packs.get(e.packId)!.pack.entries[e.index] as { word: string };
+      return { elementId: e.elementId, word: entry.word, normalized: normalizeText(entry.word) };
+    });
     // Dédoublonnage inter-packs par mot normalisé (un même mot dans deux packs = un seul candidat).
     const distinct = new Map<string, Candidate[]>();
     for (const c of scope) {
@@ -305,14 +311,11 @@ export class PacksService implements OnModuleInit {
     }
     if (distinct.size < count) return { error: 'NO_CONTENT' };
 
-    // En Random, la pondération s'applique mot par mot quand les deux modes proposent le mot.
-    const pool = [...distinct.values()].map((variants) => {
-      if (variants.length === 1) return variants[0];
-      const interne = variants.find((v) => v.mode === 'interne');
-      const normal = variants.find((v) => v.mode === 'normal');
-      if (!interne || !normal) return variants[0];
-      return rng() < randomWeight ? interne : normal;
-    });
+    // Un mot présent dans plusieurs packs : la variante encore jamais jouée
+    // porte le tirage (l'anti-répétition reste fidèle), sinon la première.
+    const pool = [...distinct.values()].map(
+      (variants) => variants.find((v) => !usedEntryIds.has(v.elementId)) ?? variants[0],
+    );
 
     const fresh = shuffled(pool.filter((c) => !usedEntryIds.has(c.elementId)), rng);
     let recycled = false;
@@ -330,31 +333,19 @@ export class PacksService implements OnModuleInit {
   }
 
   /**
-   * Tire un élément de contenu en respectant le mode (§3.5) et l'anti-répétition
-   * intra-salon. Pool épuisé → re-mélange signalé (« contenu recyclé »).
+   * Tire un élément dans l'UNION des entrées des packs cochés — uniforme PAR
+   * ENTRÉE (un petit pack n'est pas surreprésenté), anti-répétition intra-salon
+   * inchangée. Pool épuisé → re-mélange signalé (« contenu recyclé »).
    */
   private drawEntry<E>(
     game: GameId,
-    contentMode: ContentMode,
+    packIds: string[],
     usedEntryIds: Set<string>,
     rng: Rng,
-    randomWeight: number,
     teamName?: string,
   ): DrawnElement<E> | { error: 'NO_CONTENT' } {
-    const byMode = (mode: PackMode) => this.indexElements(game, mode);
-    let pool: IndexedElement[];
-    if (contentMode === 'random') {
-      const interne = byMode('interne');
-      const normal = byMode('normal');
-      if (interne.length === 0 && normal.length === 0) return { error: 'NO_CONTENT' };
-      // Le mode s'applique au tirage de chaque élément : pondération 50/50 par défaut.
-      if (interne.length === 0) pool = normal;
-      else if (normal.length === 0) pool = interne;
-      else pool = rng() < randomWeight ? interne : normal;
-    } else {
-      pool = byMode(contentMode);
-      if (pool.length === 0) return { error: 'NO_CONTENT' };
-    }
+    const pool = this.indexElements(game, packIds);
+    if (pool.length === 0) return { error: 'NO_CONTENT' };
 
     let candidates = pool.filter((e) => !usedEntryIds.has(e.elementId));
     if (teamName) {
@@ -485,11 +476,21 @@ export class PacksService implements OnModuleInit {
     return { ...envelope, entries: entries[game] };
   }
 
-  private indexElements(game: GameId, mode: PackMode): IndexedElement[] {
+  /** Packs actifs du jeu parmi les ids donnés (les ids périmés sont ignorés). */
+  private activePacks(game: GameId, packIds: string[]): Pack[] {
+    const packs: Pack[] = [];
+    for (const id of packIds) {
+      const loaded = this.packs.get(id);
+      if (loaded && loaded.enabled && loaded.pack.game === game) packs.push(loaded.pack);
+    }
+    return packs;
+  }
+
+  private indexElements(game: GameId, packIds: string[]): IndexedElement[] {
     const elements: IndexedElement[] = [];
-    for (const pack of this.packsFor(game, mode)) {
+    for (const pack of this.activePacks(game, packIds)) {
       pack.entries.forEach((_, index) => {
-        elements.push({ elementId: entryElementId(pack.id, index), packId: pack.id, mode, index });
+        elements.push({ elementId: entryElementId(pack.id, index), packId: pack.id, index });
       });
     }
     return elements;

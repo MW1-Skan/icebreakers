@@ -11,7 +11,6 @@ import { DEFAULT_ADMIN_PASSWORD } from './boot-guard';
 export interface AppConfig {
   siteName: string;
   internalModeLabel: string;
-  randomWeight: number;
   timers: { discussSeconds: number; voteSeconds: number; whiteGuessSeconds: number };
   adminPassword: string;
 }
@@ -19,7 +18,6 @@ export interface AppConfig {
 const DEFAULTS: AppConfig = {
   siteName: 'Icebreakers',
   internalModeLabel: 'Interne',
-  randomWeight: 0.5,
   timers: { discussSeconds: 60, voteSeconds: 45, whiteGuessSeconds: 30 },
   adminPassword: DEFAULT_ADMIN_PASSWORD,
 };

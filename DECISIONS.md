@@ -428,6 +428,36 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
 - **admin.spec e2e** passe de 6 à 7 packs intégrés (pack builtin
   `codenames-normal-01`, 80 mots grand public).
 
+## Multi-sélection de packs par partie (remplace les modes de contenu — demande directe)
+
+- **`host:selectGame` transporte `packIds: string[]`** à la place de `contentMode`
+  (§3.5 caduc). Absent ou vide → défaut = tous les packs actifs du jeu, stocké
+  comme « défaut » (résolu à CHAQUE tirage : un pack uploadé après coup intègre
+  le pool tant que le host n'a pas touché aux cases). Les ids inconnus,
+  inactifs ou d'un autre jeu sont filtrés EN SILENCE à la sélection comme au
+  lancement (un pack désactivé/supprimé entre-temps sort de la sélection ;
+  plus aucun pack → blocker au lobby et NO_CONTENT au tirage).
+- **« Rien coché » est un état d'UI local** : le protocole ne peut pas le
+  distinguer du défaut (« vide → tous »), donc le client n'envoie jamais de
+  sélection vide — il bloque le lancement localement (« Coche au moins un
+  pack… »). L'invariant serveur tient sans lui : une sélection résolue vide ne
+  lance jamais rien.
+- **Tirage uniforme PAR ENTRÉE** dans l'union des packs cochés (pas « un pack
+  au hasard puis une entrée » — un petit pack n'est pas surreprésenté, testé
+  statistiquement). Anti-répétition par élément inchangée (`packId#index`).
+  Spyfall : les items des thèmes de même nom fusionnent entre packs cochés.
+  Codenames : mots dédoublonnés inter-packs (la variante jamais jouée porte
+  l'anti-répétition) et blocker chiffré si l'union compte moins de mots
+  distincts que la grille.
+- **`availableModes` → `availablePacks`** dans les projections (id, nom, mode,
+  nb d'entrées — JAMAIS le contenu des entrées). Les noms de packs deviennent
+  visibles des joueurs/TV — assumé. Le tag `mode: interne|normal` reste sur
+  les packs (vocabulaire §4.5) : badge dans l'admin et la modale, libellé
+  toujours servi par `internalModeLabel`.
+- **`randomWeight` supprimé** (config d'instance + signatures de tirage) : la
+  pondération Random n'a plus d'objet, l'union des packs cochés la remplace.
+  Un `config.json` existant qui porte encore la clé est simplement ignoré.
+
 ## Retours du premier déploiement réel (intégrés à DEPLOY.md)
 
 - **Cloudflare One, UI d'août 2026** : plus de section « Settings →

@@ -9,7 +9,6 @@ import { EVENTS } from '@icebreakers/shared';
 import type {
   ActionAck,
   ClientView,
-  ContentMode,
   GameActionPayload,
   GameEventMessage,
   GameId,
@@ -90,9 +89,10 @@ export class SocketService {
     return ack;
   }
 
+  /** `packIds` absent → défaut serveur : tous les packs actifs du jeu. */
   selectGame(
     game: GameId,
-    contentMode: ContentMode,
+    packIds: string[] | undefined,
     params:
       | Partial<UndercoverParams>
       | Partial<JustOneParams>
@@ -102,7 +102,10 @@ export class SocketService {
       | Partial<TabooParams>
       | Partial<CodenamesParams>,
   ): Promise<ActionAck> {
-    return this.emitAck<ActionAck>(EVENTS.hostSelectGame, { game, contentMode, params });
+    return this.emitAck<ActionAck>(
+      EVENTS.hostSelectGame,
+      packIds && packIds.length > 0 ? { game, packIds, params } : { game, params },
+    );
   }
 
   start(): Promise<ActionAck> {

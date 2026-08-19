@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import type {
   ClientView,
   CodenamesParams,
-  ContentMode,
+  PackMode,
   PlayerPublicView,
   ItoParams,
   JustOneParams,
@@ -226,15 +226,40 @@ const GAME_CARDS: GameCard[] = [
           <p class="description">{{ g.description }}</p>
 
           <div class="settings">
+            <h4>Packs de contenu</h4>
+            <div class="packs" role="group" aria-label="Packs de contenu">
+              @if (!packsReady()) {
+                <p class="muted">Chargement des packs…</p>
+              } @else if (availablePacks().length === 0) {
+                <p class="blocker">Aucun pack actif pour ce jeu — ajoute ou active un pack dans /admin.</p>
+              } @else {
+                @if (availablePacks().length > 1) {
+                  <div class="packs-actions">
+                    <button type="button" (click)="setAllPacks(true)">Tout cocher</button>
+                    <button type="button" (click)="setAllPacks(false)">Tout décocher</button>
+                  </div>
+                }
+                @for (p of availablePacks(); track p.id) {
+                  <label class="pack-item">
+                    <input
+                      type="checkbox"
+                      [name]="'pack-' + p.id"
+                      [checked]="isPackChecked(p.id)"
+                      (change)="togglePack(p.id)"
+                    />
+                    <span class="pack-name">{{ p.name }}</span>
+                    <span class="pack-mode" [class.interne]="p.mode === 'interne'">{{ packModeLabel(p.mode) }}</span>
+                    <span class="pack-count">{{ p.entriesCount }} entrées</span>
+                  </label>
+                }
+                @if (noPackChecked()) {
+                  <p class="blocker">Coche au moins un pack de contenu pour lancer.</p>
+                }
+              }
+            </div>
+
             <h4>Réglages</h4>
             <div class="row">
-              <label for="mode">Contenu</label>
-              <select id="mode" name="mode" [ngModel]="selectedMode()" (ngModelChange)="setMode($event)">
-                @for (m of view().room.availableModes; track m) {
-                  <option [value]="m">{{ modeLabel(m) }}</option>
-                }
-              </select>
-
               @if (g.id === 'undercover') {
                 <label for="manches">Manches</label>
                 <select id="manches" name="manches" [ngModel]="ucParams().manchesCount" (ngModelChange)="patchUc({ manchesCount: +$event })">
@@ -477,7 +502,7 @@ const GAME_CARDS: GameCard[] = [
             @for (blocker of controls()?.startBlockers ?? []; track blocker) {
               <span class="blocker">{{ blocker }}</span>
             }
-            <button class="primary start" (click)="start()" [disabled]="!controls()?.canStart">
+            <button class="primary start" (click)="start()" [disabled]="!controls()?.canStart || noPackChecked()">
               Lancer la partie
             </button>
           </footer>
@@ -651,6 +676,59 @@ const GAME_CARDS: GameCard[] = [
       .settings h4 {
         margin: 0 0 0.5em;
       }
+      .packs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        margin-bottom: 1rem;
+      }
+      .packs-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .packs-actions button {
+        font-size: 0.82rem;
+        padding: 0.2em 0.7em;
+      }
+      .pack-item {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+      }
+      .pack-item:hover {
+        border-color: var(--game-color);
+      }
+      .pack-item input {
+        accent-color: var(--game-color);
+      }
+      .pack-name {
+        font-weight: 600;
+        flex: 1;
+      }
+      .pack-mode {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 0.78rem;
+        padding: 0.05em 0.6em;
+        color: var(--fg-muted);
+      }
+      .pack-mode.interne {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .pack-count {
+        font-size: 0.82rem;
+        color: var(--fg-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .packs .blocker,
+      .packs .muted {
+        margin: 0.1rem 0;
+      }
       .settings .row {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -709,14 +787,32 @@ export class HostLobbyComponent {
 
   readonly controls = computed(() => this.view().hostControls);
   readonly selectedGame = computed(() => this.view().room.selection?.game ?? 'undercover');
-  readonly selectedMode = computed<ContentMode>(
-    () => this.view().room.selection?.contentMode ?? this.view().room.availableModes[0] ?? 'normal',
-  );
   readonly joinUrl = computed(() => `${location.origin}/join/${this.view().room.code}`);
 
   /** Jeu dont la modale de configuration est ouverte (null = fermée). */
   readonly configOpen = signal<SelectableGame | null>(null);
   readonly openCard = computed(() => GAME_CARDS.find((g) => g.id === this.configOpen()) ?? null);
+
+  // ─── Packs de contenu (cases à cocher) ────────────────────────────────────
+
+  /** Cases cochées localement dans la modale ouverte (null = suivre le serveur). */
+  readonly localPackIds = signal<string[] | null>(null);
+  readonly availablePacks = computed(() => this.view().room.availablePacks);
+  /**
+   * La liste des packs du serveur suit SA sélection : on ne l'affiche (et on
+   * n'envoie des ids) que quand elle correspond au jeu de la modale — évite
+   * d'envoyer les packs d'un autre jeu pendant le bref délai de l'ack.
+   */
+  readonly packsReady = computed(() => this.view().room.selection?.game === this.configOpen());
+  readonly checkedPackIds = computed<string[]>(() => {
+    const local = this.localPackIds();
+    if (local !== null) return local;
+    const selection = this.view().room.selection;
+    if (selection && selection.game === this.configOpen()) return selection.packIds;
+    // Défaut : tous les packs actifs cochés.
+    return this.availablePacks().map((p) => p.id);
+  });
+  readonly noPackChecked = computed(() => this.packsReady() && this.checkedPackIds().length === 0);
 
   readonly ucParams = computed<UndercoverParams>(() => {
     const selection = this.view().room.selection;
@@ -765,45 +861,70 @@ export class HostLobbyComponent {
 
   /** Clic sur une carte : sélectionne le jeu (défauts si on en change) et ouvre la modale. */
   openGame(game: SelectableGame): void {
+    this.localPackIds.set(null);
     if (this.view().room.selection?.game !== game) {
-      void this.socket.selectGame(game, this.selectedMode(), {});
+      // Sans packIds : défaut serveur = tous les packs actifs du jeu.
+      void this.socket.selectGame(game, undefined, {});
     }
     this.configOpen.set(game);
   }
 
   closeConfig(): void {
     this.configOpen.set(null);
+    this.localPackIds.set(null);
   }
 
   onOverlayClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('overlay')) this.closeConfig();
   }
 
-  modeLabel(mode: ContentMode): string {
-    if (mode === 'interne') return this.view().room.config.internalModeLabel;
-    if (mode === 'normal') return 'Normal';
-    return 'Random (mélange)';
+  packModeLabel(mode: PackMode): string {
+    return mode === 'interne' ? this.view().room.config.internalModeLabel : 'Normal';
   }
 
-  setMode(mode: ContentMode): void {
-    const game = this.configOpen() ?? this.selectedGame();
-    void this.socket.selectGame(game, mode, this.overridesFor(game));
+  isPackChecked(id: string): boolean {
+    return this.checkedPackIds().includes(id);
+  }
+
+  togglePack(id: string): void {
+    const current = this.checkedPackIds();
+    this.setPackSelection(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+  }
+
+  setAllPacks(checked: boolean): void {
+    this.setPackSelection(checked ? this.availablePacks().map((p) => p.id) : []);
+  }
+
+  private setPackSelection(ids: string[]): void {
+    this.localPackIds.set(ids);
+    // Sélection vide : rien n'est envoyé (le serveur y verrait le défaut
+    // « tous ») — le blocage du lancement est porté par l'UI tant que rien
+    // n'est coché.
+    const game = this.configOpen();
+    if (ids.length > 0 && game) void this.socket.selectGame(game, ids, this.overridesFor(game));
+  }
+
+  /** Ids à joindre aux envois de réglages (undefined = défaut serveur). */
+  private sendPackIds(): string[] | undefined {
+    if (!this.packsReady()) return undefined;
+    const ids = this.checkedPackIds();
+    return ids.length > 0 ? ids : undefined;
   }
 
   patchUc(change: Partial<UndercoverParams>): void {
-    void this.socket.selectGame('undercover', this.selectedMode(), { ...this.ucOverrides(), ...change });
+    void this.socket.selectGame('undercover', this.sendPackIds(), { ...this.ucOverrides(), ...change });
   }
 
   patchJo(change: Partial<JustOneParams>): void {
-    void this.socket.selectGame('justone', this.selectedMode(), { ...this.joOverrides(), ...change });
+    void this.socket.selectGame('justone', this.sendPackIds(), { ...this.joOverrides(), ...change });
   }
 
   patchWl(change: Partial<WavelengthParams>): void {
-    void this.socket.selectGame('wavelength', this.selectedMode(), { ...this.wlOverrides(), ...change });
+    void this.socket.selectGame('wavelength', this.sendPackIds(), { ...this.wlOverrides(), ...change });
   }
 
   patchIto(change: Partial<ItoParams>): void {
-    void this.socket.selectGame('ito', this.selectedMode(), { ...this.itoOverrides(), ...change });
+    void this.socket.selectGame('ito', this.sendPackIds(), { ...this.itoOverrides(), ...change });
   }
 
   private overridesFor(
@@ -846,15 +967,15 @@ export class HostLobbyComponent {
   }
 
   patchSf(change: Partial<SpyfallParams>): void {
-    void this.socket.selectGame('spyfall', this.selectedMode(), { ...this.sfOverrides(), ...change });
+    void this.socket.selectGame('spyfall', this.sendPackIds(), { ...this.sfOverrides(), ...change });
   }
 
   patchTb(change: Partial<TabooParams>): void {
-    void this.socket.selectGame('taboo', this.selectedMode(), { ...this.tbOverrides(), ...change });
+    void this.socket.selectGame('taboo', this.sendPackIds(), { ...this.tbOverrides(), ...change });
   }
 
   patchCn(change: Partial<CodenamesParams>): void {
-    void this.socket.selectGame('codenames', this.selectedMode(), { ...this.cnOverrides(), ...change });
+    void this.socket.selectGame('codenames', this.sendPackIds(), { ...this.cnOverrides(), ...change });
   }
 
   setCnGridSize(value: string | number): void {

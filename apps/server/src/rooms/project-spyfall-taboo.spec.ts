@@ -28,7 +28,7 @@ function makeRoom(game: GameState, selectionGame: 'spyfall' | 'taboo', status: R
     playerTokens: new Map(),
     mirrorConnected: false,
     status,
-    selection: { game: selectionGame, contentMode: 'normal', paramOverrides: {} },
+    selection: { game: selectionGame, paramOverrides: {} },
     game,
     sessionRecap: [],
     usedEntryIds: new Set(),
@@ -41,7 +41,8 @@ function makeRoom(game: GameState, selectionGame: 'spyfall' | 'taboo', status: R
 
 const PCTX: ProjectionCtx = {
   timers: [],
-  availableModes: ['normal'],
+  availablePacks: [{ id: 'test-pack', name: 'Pack de test', mode: 'normal', entriesCount: 10 }],
+  selectedPackIds: ['test-pack'],
   config: { siteName: 'Icebreakers', internalModeLabel: 'Interne' },
   timerDefaults: { discussSeconds: 60, voteSeconds: 45, whiteGuessSeconds: 30 },
 };

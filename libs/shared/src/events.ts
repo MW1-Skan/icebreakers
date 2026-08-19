@@ -104,42 +104,47 @@ export const codenamesParamsSchema = z.object({
   spymasters: z.tuple([z.string(), z.string()]).optional(),
 });
 
-const contentModeSchema = z.enum(['interne', 'normal', 'random']);
+/**
+ * Packs cochés pour la partie. Absent ou vide → défaut : TOUS les packs
+ * actifs du jeu (résolu au tirage). Les ids inconnus/inactifs/d'un autre jeu
+ * sont filtrés en silence côté serveur.
+ */
+const packIdsSchema = z.array(z.string().trim().min(1).max(80)).max(200).optional();
 
 export const hostSelectGameSchema = z.discriminatedUnion('game', [
   z.object({
     game: z.literal('undercover'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: undercoverParamsSchema.default({}),
   }),
   z.object({
     game: z.literal('justone'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: justoneParamsSchema.default({}),
   }),
   z.object({
     game: z.literal('wavelength'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: wavelengthParamsSchema.default({}),
   }),
   z.object({
     game: z.literal('ito'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: itoParamsSchema.default({}),
   }),
   z.object({
     game: z.literal('spyfall'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: spyfallParamsSchema.default({}),
   }),
   z.object({
     game: z.literal('taboo'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: tabooParamsSchema.default({}),
   }),
   z.object({
     game: z.literal('codenames'),
-    contentMode: contentModeSchema,
+    packIds: packIdsSchema,
     params: codenamesParamsSchema.default({}),
   }),
 ]);

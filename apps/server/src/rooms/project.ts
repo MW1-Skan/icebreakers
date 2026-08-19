@@ -81,56 +81,65 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
     const setup = validateTabooSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
   }
-  const { contentMode } = room.selection;
-  const contentOk =
-    contentMode === 'random' ? ctx.availableModes.length > 0 : ctx.availableModes.includes(contentMode);
-  if (!contentOk) blockers.push('Aucun pack de contenu disponible pour ce mode.');
+  if (ctx.selectedPackIds.length === 0) {
+    blockers.push('Aucun pack de contenu sélectionné pour ce jeu.');
+  } else if (room.selection.game === 'codenames') {
+    // La grille exige assez de mots DISTINCTS dans l'union des packs cochés.
+    const params = resolveCodenamesParams(room.selection.paramOverrides);
+    if (ctx.codenamesDistinctWords !== undefined && ctx.codenamesDistinctWords < params.gridSize) {
+      blockers.push(
+        `Il faut au moins ${params.gridSize} mots distincts dans les packs cochés (${ctx.codenamesDistinctWords} disponibles).`,
+      );
+    }
+  }
   return blockers;
 }
 
 function projectSelection(room: Room, ctx: ProjectionCtx): GameSelectionView | undefined {
   if (!room.selection) return undefined;
+  // Les ids cochés projetés sont la sélection RÉSOLUE (packs encore actifs).
+  const packIds = [...ctx.selectedPackIds];
   switch (room.selection.game) {
     case 'undercover':
       return {
         game: 'undercover',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveUndercoverParams(room.players.length, room.selection.paramOverrides, ctx.timerDefaults),
       };
     case 'justone':
       return {
         game: 'justone',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveJustOneParams(room.selection.paramOverrides),
       };
     case 'wavelength':
       return {
         game: 'wavelength',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveWavelengthParams(room.players.length, room.selection.paramOverrides),
       };
     case 'ito':
       return {
         game: 'ito',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveItoParams(room.selection.paramOverrides),
       };
     case 'spyfall':
       return {
         game: 'spyfall',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveSpyfallParams(room.selection.paramOverrides),
       };
     case 'taboo':
       return {
         game: 'taboo',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveTabooParams(room.selection.paramOverrides),
       };
     case 'codenames':
       return {
         game: 'codenames',
-        contentMode: room.selection.contentMode,
+        packIds,
         params: resolveCodenamesParams(room.selection.paramOverrides),
       };
   }
@@ -183,7 +192,7 @@ function projectPublic(room: Room, ctx: ProjectionCtx): RoomPublicView {
     // Animateur déconnecté en partie → pause automatique (§3.4).
     paused: !room.host.connected && room.status === 'inGame',
     selection: projectSelection(room, ctx),
-    availableModes: [...ctx.availableModes],
+    availablePacks: ctx.availablePacks.map((p) => ({ ...p })),
     config: { siteName: ctx.config.siteName, internalModeLabel: ctx.config.internalModeLabel },
     recap: room.sessionRecap.map((r) => ({ ...r, points: r.points.map((p) => ({ ...p })) })),
     timers: ctx.timers.map((t) => ({ ...t })),

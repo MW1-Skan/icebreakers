@@ -81,7 +81,7 @@ describe('PacksService — administration', () => {
     const result = service.uploadPack(validPack('interne-team-01'));
     expect(result).toMatchObject({ ok: true, packId: 'interne-team-01', entriesCount: 2, replaced: false });
     expect(fs.existsSync(path.join(tmpDir, 'data', 'packs', 'interne-team-01.json'))).toBe(true);
-    expect(service.availableModesFor('justone')).toEqual(['interne', 'normal', 'random']);
+    expect(service.packsPublicFor('justone').map((p) => p.id)).toEqual(['builtin-pack', 'interne-team-01']);
     expect(service.adminList().find((p) => p.id === 'interne-team-01')).toMatchObject({
       source: 'data',
       enabled: true,
@@ -112,15 +112,15 @@ describe('PacksService — administration', () => {
   it('désactiver un pack le retire des tirages et survit au redémarrage', () => {
     const service = makeService();
     expect(service.setEnabled('builtin-pack', false)).toEqual({ ok: true });
-    expect(service.availableModesFor('justone')).toEqual([]);
+    expect(service.packsPublicFor('justone')).toEqual([]);
 
     // « redémarrage » : une nouvelle instance relit la liste persistée
     const restarted = makeService();
     expect(restarted.adminList().find((p) => p.id === 'builtin-pack')?.enabled).toBe(false);
-    expect(restarted.availableModesFor('justone')).toEqual([]);
+    expect(restarted.packsPublicFor('justone')).toEqual([]);
 
     expect(restarted.setEnabled('builtin-pack', true)).toEqual({ ok: true });
-    expect(restarted.availableModesFor('justone')).toEqual(['normal']);
+    expect(restarted.packsPublicFor('justone').map((p) => p.id)).toEqual(['builtin-pack']);
   });
 
   it('supprimer : packs à chaud uniquement (un builtin se désactive)', () => {
