@@ -162,6 +162,11 @@ Protégée par un mot de passe simple — variable d'environnement
 - **Uploader** un pack JSON : validation immédiate avec rapport d'erreurs
   lisible ; écrit dans `data/packs/` (survit au redémarrage, jamais dans Git),
   jouable aussitôt. Ré-uploader un id existant remplace le pack.
+- **Éditer** un pack à chaud entrée par entrée, directement dans la page
+  (`id` et jeu immuables) ; **dupliquer** un pack intégré en pack à chaud
+  pour l'adapter ; **créer** un pack depuis le template d'un jeu. La
+  sauvegarde repasse par la même validation : un contenu invalide est refusé
+  avec le rapport, rien n'est écrit.
 - **Activer/désactiver** n'importe quel pack (persisté) — un pack inactif sort
   des tirages et de la liste proposée dans la modale des jeux.
 - **Supprimer** les packs ajoutés à chaud (les packs intégrés se désactivent).

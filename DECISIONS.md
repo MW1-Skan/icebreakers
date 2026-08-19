@@ -458,6 +458,32 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   pondération Random n'a plus d'objet, l'union des packs cochés la remplace.
   Un `config.json` existant qui porte encore la clé est simplement ignoré.
 
+## Éditeur de packs dans /admin (la « v2 » annoncée par le §4.3 — demande directe)
+
+- **Sauvegarde = le flux d'upload existant** : l'éditeur construit le JSON du
+  pack et le POSTe en multipart sur `/api/admin/packs` (un `File` fabriqué
+  côté client) — même validation Zod, même rapport d'erreurs lisible, même
+  remplacement atomique. Contenu invalide → rien n'est écrit et l'éditeur
+  reste ouvert avec le rapport.
+- **`id` et `game` immuables** : champ id désactivé en édition ; le jeu n'est
+  jamais saisi (il vient du pack source ou du template). « Dupliquer en pack
+  à chaud » (packs builtin uniquement — c'est la voie officielle pour
+  « modifier » un builtin sans passer par le repo) précharge l'éditeur avec
+  l'id `<id>-copie` ; un id déjà pris est refusé côté client AVANT envoi pour
+  éviter un remplacement accidentel (le serveur protège de toute façon les
+  ids builtin).
+- **`difficulty` préservée, pas éditée** : le champ optionnel suit sa ligne
+  telle quelle lors des modifications ; les lignes ajoutées n'en portent pas.
+  Les champs édités sont exactement ceux de la demande (a/b, left/right,
+  word, category+items, theme, word + 3 interdits).
+- **Spyfall : items en textarea** (un item par ligne, lignes vides ignorées)
+  plutôt qu'un input par item — un thème porte 8 items minimum.
+- **Créer un pack** : choix du jeu → `GET /api/packs/template/<jeu>` (endpoint
+  public existant, chaque template est un pack valide) précharge l'éditeur.
+  `GET /api/admin/packs/:id` (AdminGuard) sert le contenu complet pour
+  éditer/dupliquer — builtin compris ; `lang` et `author` sont repris tels
+  quels du pack source.
+
 ## Retours du premier déploiement réel (intégrés à DEPLOY.md)
 
 - **Cloudflare One, UI d'août 2026** : plus de section « Settings →
