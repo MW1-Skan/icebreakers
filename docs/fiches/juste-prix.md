@@ -1,8 +1,8 @@
 # Fiche — Le Juste Prix 🏷️ (8e jeu)
 
 > **Statut : brouillon v2 — décisions du 22/10 intégrées** (images par URL,
-> barème au classement, finale reportée, pack intégré d'une trentaine
-> d'articles). Les points encore ouverts sont en §15. Une fois validée, cette
+> barème au classement, option « sans dépasser », finale reportée, pack
+> intégré d'une trentaine d'articles). Le point encore ouvert est en §15. Une fois validée, cette
 > fiche est la spec de référence du jeu (comme la fiche Codenames, hors PRD) ;
 > les écarts d'implémentation iront dans `DECISIONS.md`.
 
@@ -318,14 +318,12 @@ Tranché le 22/10 :
 - **Barème** : classement de l'article, 3/2/1 (§4).
 - **Finale « C'est plus ! C'est moins ! »** : plus tard (§14).
 - **Pack intégré** : oui, une trentaine d'articles choisis selon §9.
+- **Option « Sans dépasser »** : gardée en réglage, désactivée par défaut (§4).
+- **Import depuis l'URL d'une page produit** : piste v2 ; en v1, l'admin
+  colle l'URL de l'image (§10, §14).
 
 Encore ouvert :
 
-1. **Option « Sans dépasser »** : on la garde en réglage (désactivée par
-   défaut) ?
-2. **« Option URLs »** : compris comme « images par lien ». L'import
-   automatique depuis l'URL d'une page produit (le serveur lit photo, nom et
-   prix) reste en piste v2 — à confirmer.
-3. **Pack intégré** : la vérification des prix sur les pages produits et le
+1. **Pack intégré** : la vérification des prix sur les pages produits et le
    choix des URLs d'images demandent un accès réseau que l'environnement de
    développement actuel bloque.
