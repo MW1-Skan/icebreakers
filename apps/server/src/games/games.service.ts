@@ -9,6 +9,7 @@ import type {
   GameEventMessage,
   ItoAction,
   JustOneAction,
+  JustePrixAction,
   PlayerId,
   SpyfallAction,
   TabooAction,
@@ -89,6 +90,17 @@ import {
   startNextCodenamesManche,
   validateCodenamesSetup,
 } from './codenames/codenames.engine';
+import {
+  applyItemChange,
+  buildJustePrixResult,
+  canChangeItem,
+  guardJustePrix,
+  initJustePrix,
+  reduceJustePrix,
+  resolveJustePrixParams,
+  validateJustePrixSetup,
+} from './justeprix/justeprix.engine';
+import { normalizeText } from '../shared';
 import type { GameEffect } from '../shared';
 
 export type GameAction =
@@ -98,7 +110,8 @@ export type GameAction =
   | ItoAction
   | SpyfallAction
   | TabooAction
-  | CodenamesAction;
+  | CodenamesAction
+  | JustePrixAction;
 
 @Injectable()
 export class GamesService {
@@ -159,7 +172,66 @@ export class GamesService {
         return this.startTaboo(room);
       case 'codenames':
         return this.startCodenames(room);
+      case 'justeprix':
+        return this.startJustePrix(room);
     }
+  }
+
+  private startJustePrix(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const selection = room.selection!;
+    if (selection.game !== 'justeprix') throw new Error('unreachable');
+    const playerIds = room.players.map((p) => p.id);
+    const setup = validateJustePrixSetup(playerIds.length);
+    if (!setup.ok) return { ok: false, error: { code: setup.code, message: setup.message } };
+    const params = resolveJustePrixParams(selection.paramOverrides);
+
+    const packIds = this.selectionPackIds(room);
+    if (packIds.length === 0) return this.noPacksError();
+    // Tous les articles de la partie sont tirés d'un coup : jamais deux fois le même.
+    const drawn = this.packs.drawJustePrixItems(params.manchesCount, packIds, room.usedEntryIds, room.rng);
+    if ('error' in drawn) {
+      return {
+        ok: false,
+        error: {
+          code: 'NO_CONTENT',
+          message: `Il faut au moins ${params.manchesCount} articles distincts dans les packs cochés.`,
+        },
+      };
+    }
+    room.contentRecycled = drawn.recycled;
+
+    const { state, effects } = initJustePrix(playerIds, drawn.items, params, this.engineCtx(room));
+    room.game = state;
+    room.status = 'inGame';
+    this.rooms.touch(room);
+    this.logger.log(`Salon ${room.code} : Juste Prix lancé (${playerIds.length} joueurs, ${params.manchesCount} articles).`);
+    this.applyEffects(room, effects);
+    return { ok: true };
+  }
+
+  /** Juste Prix — « Changer d'article » (host, pendant l'estimation). */
+  justePrixChangeItem(room: Room): { ok: true } | { ok: false; error: WsError } {
+    const game = room.game;
+    if (room.status !== 'inGame' || !game || game.kind !== 'justeprix') {
+      return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune partie de Juste Prix en cours.' } };
+    }
+    const guard = canChangeItem(game);
+    if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+    if (!room.selection) {
+      return { ok: false, error: { code: 'GAME_NOT_SELECTED', message: 'Sélection de jeu perdue.' } };
+    }
+    // Le remplaçant n'est aucun des articles de la partie (joués ou à venir).
+    const inGame = new Set(game.items.map((item) => normalizeText(item.name)));
+    const drawn = this.packs.drawJustePrixItems(1, this.selectionPackIds(room), room.usedEntryIds, room.rng, inGame);
+    if ('error' in drawn) {
+      return { ok: false, error: { code: 'NO_CONTENT', message: 'Aucun autre article disponible.' } };
+    }
+    room.contentRecycled = room.contentRecycled || drawn.recycled;
+    const { state, effects } = applyItemChange(game, drawn.items[0]);
+    room.game = state;
+    this.rooms.touch(room);
+    this.applyEffects(room, effects);
+    return { ok: true };
   }
 
   private startCodenames(room: Room): { ok: true } | { ok: false; error: WsError } {
@@ -483,6 +555,16 @@ export class GamesService {
       this.applyEffects(room, effects);
       return { ok: true };
     }
+    if (room.game.kind === 'justeprix') {
+      const jpAction = action as JustePrixAction;
+      const guard = guardJustePrix(room.game, jpAction, ctx);
+      if (!guard.ok) return { ok: false, error: { code: guard.code, message: guard.message } };
+      const { state, effects } = reduceJustePrix(room.game, jpAction, ctx);
+      room.game = state;
+      this.rooms.touch(room);
+      this.applyEffects(room, effects);
+      return { ok: true };
+    }
     if (room.game.kind === 'codenames') {
       const cnAction = action as CodenamesAction;
       const guard = guardCodenames(room.game, cnAction, ctx);
@@ -738,6 +820,10 @@ export class GamesService {
       const result = buildCodenamesResult(game, room.players, Date.now());
       result.summary = `Série écourtée — ${result.summary}`;
       room.sessionRecap.push(result);
+    } else if (game?.kind === 'justeprix' && game.history.length >= 1) {
+      const result = buildJustePrixResult(game, room.players, Date.now());
+      result.summary = `Partie écourtée (${game.history.length}/${game.items.length} articles) — ${result.summary}`;
+      room.sessionRecap.push(result);
     }
     room.game = undefined;
     room.status = 'lobby';
@@ -796,6 +882,8 @@ export class GamesService {
             room.sessionRecap.push(buildTabooResult(room.game, room.players, Date.now()));
           } else if (room.game?.kind === 'codenames') {
             room.sessionRecap.push(buildCodenamesResult(room.game, room.players, Date.now()));
+          } else if (room.game?.kind === 'justeprix') {
+            room.sessionRecap.push(buildJustePrixResult(room.game, room.players, Date.now()));
           }
           events.push({ name: 'gameEnded', payload: effect.winner ? { winner: effect.winner } : undefined });
           break;

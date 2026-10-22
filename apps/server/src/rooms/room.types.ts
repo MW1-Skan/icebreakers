@@ -10,6 +10,8 @@ import type {
   ItoState,
   JustOneParams,
   JustOneState,
+  JustePrixParams,
+  JustePrixState,
   PackPublicView,
   Player,
   PlayerId,
@@ -33,7 +35,8 @@ export type GameState =
   | ItoState
   | SpyfallState
   | TabooState
-  | CodenamesState;
+  | CodenamesState
+  | JustePrixState;
 
 /**
  * Surcharges explicites du host ; les défauts sont résolus au lancement.
@@ -47,7 +50,8 @@ export type GameSelection =
   | { game: 'ito'; packIds?: string[]; paramOverrides: Partial<ItoParams> }
   | { game: 'spyfall'; packIds?: string[]; paramOverrides: Partial<SpyfallParams> }
   | { game: 'taboo'; packIds?: string[]; paramOverrides: Partial<TabooParams> }
-  | { game: 'codenames'; packIds?: string[]; paramOverrides: Partial<CodenamesParams> };
+  | { game: 'codenames'; packIds?: string[]; paramOverrides: Partial<CodenamesParams> }
+  | { game: 'justeprix'; packIds?: string[]; paramOverrides: Partial<JustePrixParams> };
 
 export interface Room {
   code: string; // "KZTR"
@@ -80,6 +84,8 @@ export interface ProjectionCtx {
   selectedPackIds: string[];
   /** Codenames : mots distincts dans l'union des packs cochés (blocker grille). */
   codenamesDistinctWords?: number;
+  /** Juste Prix : articles distincts dans l'union des packs cochés (blocker). */
+  justePrixDistinctItems?: number;
   config: { siteName: string; internalModeLabel: string };
   timerDefaults: { discussSeconds: number; voteSeconds: number; whiteGuessSeconds: number };
 }

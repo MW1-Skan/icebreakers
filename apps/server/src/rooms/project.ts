@@ -48,6 +48,12 @@ import {
   validateCodenamesSetup,
 } from '../games/codenames/codenames.engine';
 import { projectCodenamesMe, projectCodenamesPublic } from '../games/codenames/codenames.project';
+import {
+  guardJustePrix,
+  resolveJustePrixParams,
+  validateJustePrixSetup,
+} from '../games/justeprix/justeprix.engine';
+import { projectJustePrixMe, projectJustePrixPublic } from '../games/justeprix/justeprix.project';
 import type { ProjectionCtx, Room } from './room.types';
 
 function connectedIdsOf(room: Room): PlayerId[] {
@@ -77,6 +83,9 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
   } else if (room.selection.game === 'codenames') {
     const setup = validateCodenamesSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
+  } else if (room.selection.game === 'justeprix') {
+    const setup = validateJustePrixSetup(playerCount);
+    if (!setup.ok) blockers.push(setup.message);
   } else {
     const setup = validateTabooSetup(playerCount);
     if (!setup.ok) blockers.push(setup.message);
@@ -89,6 +98,14 @@ function computeStartBlockers(room: Room, ctx: ProjectionCtx): string[] {
     if (ctx.codenamesDistinctWords !== undefined && ctx.codenamesDistinctWords < params.gridSize) {
       blockers.push(
         `Il faut au moins ${params.gridSize} mots distincts dans les packs cochés (${ctx.codenamesDistinctWords} disponibles).`,
+      );
+    }
+  } else if (room.selection.game === 'justeprix') {
+    // Un article ne revient jamais deux fois dans une partie.
+    const params = resolveJustePrixParams(room.selection.paramOverrides);
+    if (ctx.justePrixDistinctItems !== undefined && ctx.justePrixDistinctItems < params.manchesCount) {
+      blockers.push(
+        `Il faut au moins ${params.manchesCount} articles distincts dans les packs cochés (${ctx.justePrixDistinctItems} disponibles).`,
       );
     }
   }
@@ -142,6 +159,12 @@ function projectSelection(room: Room, ctx: ProjectionCtx): GameSelectionView | u
         packIds,
         params: resolveCodenamesParams(room.selection.paramOverrides),
       };
+    case 'justeprix':
+      return {
+        game: 'justeprix',
+        packIds,
+        params: resolveJustePrixParams(room.selection.paramOverrides),
+      };
   }
 }
 
@@ -162,6 +185,8 @@ function projectGamePublic(room: Room): GamePublicView | undefined {
       return projectTabooPublic(room.game, connectedIdsOf(room));
     case 'codenames':
       return projectCodenamesPublic(room.game);
+    case 'justeprix':
+      return projectJustePrixPublic(room.game, connectedIdsOf(room));
   }
 }
 
@@ -169,9 +194,9 @@ function projectPublic(room: Room, ctx: ProjectionCtx): RoomPublicView {
   const notices: RoomNotice[] = [];
   if (room.contentRecycled) notices.push({ kind: 'contentRecycled' });
   if (!room.host.connected) notices.push({ kind: 'hostDisconnected' });
-  // Just One / Wavelength : à moins de 3 joueurs actifs, bandeau TV (fiches 5.2/5.3).
+  // Just One / Wavelength / Juste Prix : à moins de 3 joueurs actifs, bandeau TV.
   if (
-    (room.game?.kind === 'justone' || room.game?.kind === 'wavelength') &&
+    (room.game?.kind === 'justone' || room.game?.kind === 'wavelength' || room.game?.kind === 'justeprix') &&
     room.status === 'inGame' &&
     room.game.playerIds.filter((id) => connectedIdsOf(room).includes(id)).length < 3
   ) {
@@ -230,6 +255,9 @@ function projectHostControls(room: Room, ctx: ProjectionCtx): HostControlsView {
         // Fin de manche non finale : « Manche suivante » (géré hors réducteur).
         canNext = room.game.phase === 'end' || guardCodenames(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
         break;
+      case 'justeprix':
+        canNext = guardJustePrix(room.game, { type: 'HOST_NEXT' }, engineCtx).ok;
+        break;
     }
   } else if (room.status === 'recap') {
     canNext = true; // retour au lobby
@@ -267,6 +295,8 @@ function projectMeGame(room: Room, playerId: PlayerId): GameMeView | undefined {
       return { taboo: projectTabooMe(room.game, playerId) };
     case 'codenames':
       return { codenames: projectCodenamesMe(room.game, playerId) };
+    case 'justeprix':
+      return { justeprix: projectJustePrixMe(room.game, playerId) };
   }
 }
 

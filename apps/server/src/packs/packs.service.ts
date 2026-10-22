@@ -15,6 +15,8 @@ import type {
   GameId,
   ItoPackEntry,
   JustOnePackEntry,
+  JustePrixItem,
+  JustePrixPackEntry,
   Pack,
   PackPublicView,
   Rng,
@@ -333,6 +335,73 @@ export class PacksService implements OnModuleInit {
     return { words: shuffled(chosen.map((candidate) => candidate.word), rng), recycled };
   }
 
+  /** Juste Prix : articles distincts (noms normalisés) dans l'union des packs cochés (blocker). */
+  justePrixDistinctCount(packIds: string[]): number {
+    const seen = new Set<string>();
+    for (const pack of this.activePacks('justeprix', packIds)) {
+      for (const entry of pack.entries as JustePrixPackEntry[]) seen.add(normalizeText(entry.name));
+    }
+    return seen.size;
+  }
+
+  /**
+   * Juste Prix : tire `count` articles DISTINCTS (noms normalisés) pour une
+   * partie, en privilégiant les jamais joués (anti-répétition intra-salon) puis
+   * en recyclant avec le bandeau ♻️. `excludeNames` : articles déjà dans la
+   * partie (« Changer d'article »). NO_CONTENT s'il n'y a pas assez d'articles
+   * distincts.
+   */
+  drawJustePrixItems(
+    count: number,
+    packIds: string[],
+    usedEntryIds: Set<string>,
+    rng: Rng,
+    excludeNames: Set<string> = new Set(),
+  ): { items: JustePrixItem[]; recycled: boolean } | { error: 'NO_CONTENT' } {
+    interface Candidate {
+      elementId: string;
+      entry: JustePrixPackEntry;
+    }
+    // Dédoublonnage inter-packs par nom normalisé : un même article dans deux
+    // packs n'est qu'un candidat (la variante jamais jouée porte le tirage).
+    const distinct = new Map<string, Candidate[]>();
+    for (const e of this.indexElements('justeprix', packIds)) {
+      const entry = this.packs.get(e.packId)!.pack.entries[e.index] as JustePrixPackEntry;
+      const key = normalizeText(entry.name);
+      if (excludeNames.has(key)) continue;
+      distinct.set(key, [...(distinct.get(key) ?? []), { elementId: e.elementId, entry }]);
+    }
+    if (distinct.size < count) return { error: 'NO_CONTENT' };
+
+    const pool = [...distinct.values()].map(
+      (variants) => variants.find((v) => !usedEntryIds.has(v.elementId)) ?? variants[0],
+    );
+    let chosen = shuffled(pool.filter((c) => !usedEntryIds.has(c.elementId)), rng).slice(0, count);
+    let recycled = false;
+    if (chosen.length < count) {
+      // Pool épuisé : on complète avec des articles déjà joués (re-mélange signalé).
+      recycled = true;
+      const used = shuffled(pool.filter((c) => usedEntryIds.has(c.elementId)), rng);
+      const missing = used.slice(0, count - chosen.length);
+      for (const c of missing) usedEntryIds.delete(c.elementId);
+      chosen = shuffled([...chosen, ...missing], rng);
+    }
+    for (const c of chosen) usedEntryIds.add(c.elementId);
+    return {
+      items: chosen.map(({ elementId, entry }) => ({
+        elementId,
+        name: entry.name,
+        details: entry.details,
+        price: entry.price,
+        image: entry.image,
+        source: entry.source,
+        seenAt: entry.seenAt,
+        credit: entry.credit,
+      })),
+      recycled,
+    };
+  }
+
   /**
    * Tire un élément dans l'UNION des entrées des packs cochés — uniforme PAR
    * ENTRÉE (un petit pack n'est pas surreprésenté), anti-répétition intra-salon
@@ -480,6 +549,16 @@ export class PacksService implements OnModuleInit {
       ito: [{ theme: 'Une échelle subjective' }],
       taboo: [{ word: 'Mot cible', forbidden: ['interdit 1', 'interdit 2', 'interdit 3'], difficulty: 1 }],
       codenames: [{ word: 'Mot de grille', difficulty: 1 }],
+      justeprix: [
+        {
+          name: 'Nom de l’article',
+          details: 'Détail utile pour estimer (taille, matière, quantité)',
+          price: 49.9,
+          image: 'https://exemple.fr/photo-du-produit.jpg',
+          source: 'https://exemple.fr/page-du-produit',
+          seenAt: '2026-10',
+        },
+      ],
     };
     return { ...envelope, entries: entries[game] };
   }

@@ -151,3 +151,61 @@ describe('validatePack — rejets lisibles', () => {
     if (!result.ok) expect(result.errors.join('\n')).toContain('formatVersion');
   });
 });
+
+describe('validatePack — Juste Prix (A.9)', () => {
+  const article = (overrides: Record<string, unknown> = {}) => ({
+    name: 'Gamelle pour chien',
+    details: '22 × 11 × 22 cm',
+    price: 1800,
+    image: 'https://cdn.exemple.fr/gamelle.jpg',
+    source: 'https://www.exemple.fr/gamelle',
+    seenAt: '2026-10',
+    ...overrides,
+  });
+  const jpPack = (entries: unknown[]) => basePack({ game: 'justeprix', id: 'justeprix-t', entries });
+  const errorsOf = (entries: unknown[]): string => {
+    const result = validatePack(jpPack(entries));
+    expect(result.ok, `aurait dû être refusé : ${JSON.stringify(entries)}`).toBe(false);
+    return result.ok ? '' : result.errors.join('\n');
+  };
+
+  it('accepte un article complet, et un article réduit au minimum', () => {
+    const result = validatePack(
+      jpPack([article(), { name: 'Stylo', price: 24, image: 'https://cdn.exemple.fr/stylo.jpg' }]),
+    );
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+  });
+
+  it('accepte les centimes et la date du relevé au jour près', () => {
+    const result = validatePack(jpPack([article({ price: 19.9, seenAt: '2026-10-22' })]));
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+  });
+
+  it('impose une image en https (contenu mixte et schémas exotiques refusés)', () => {
+    expect(errorsOf([article({ image: 'http://cdn.exemple.fr/gamelle.jpg' })])).toContain('https');
+    expect(errorsOf([article({ image: 'javascript:alert(1)' })])).toContain('https');
+    expect(errorsOf([article({ image: 'data:image/png;base64,AAAA' })])).toContain('https');
+    expect(errorsOf([article({ image: undefined })])).toContain('image');
+  });
+
+  it('refuse un prix nul, négatif, absurde ou à plus de 2 décimales', () => {
+    expect(errorsOf([article({ price: 0 })])).toContain('price');
+    expect(errorsOf([article({ price: -5 })])).toContain('price');
+    expect(errorsOf([article({ price: 2_000_000_000 })])).toContain('price');
+    expect(errorsOf([article({ price: 12.345 })])).toContain('2 décimales');
+    expect(errorsOf([article({ price: '1800' })])).toContain('price');
+  });
+
+  it('refuse une source qui n’est pas une URL http(s) et une date mal formée', () => {
+    expect(errorsOf([article({ source: 'ftp://exemple.fr/x' })])).toContain('source');
+    expect(errorsOf([article({ seenAt: 'octobre 2026' })])).toContain('seenAt');
+    expect(errorsOf([article({ seenAt: '2026-13' })])).toContain('seenAt');
+  });
+
+  it('refuse les doublons de nom (normalisé) et d’image', () => {
+    expect(
+      errorsOf([article(), article({ name: 'gamelle POUR chien', image: 'https://cdn.exemple.fr/autre.jpg' })]),
+    ).toContain('doublon');
+    expect(errorsOf([article(), article({ name: 'Autre article' })])).toContain('même image');
+  });
+});

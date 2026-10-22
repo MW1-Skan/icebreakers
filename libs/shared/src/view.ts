@@ -17,6 +17,8 @@ import type { TabooParams } from './taboo/types';
 import type { TabooMeView, TabooPublicView } from './taboo/view';
 import type { CodenamesParams } from './codenames/types';
 import type { CodenamesMeView, CodenamesPublicView } from './codenames/view';
+import type { JustePrixParams } from './justeprix/types';
+import type { JustePrixMeView, JustePrixPublicView } from './justeprix/view';
 
 export interface TimerView {
   id: string;
@@ -49,7 +51,8 @@ export type GamePublicView =
   | ItoPublicView
   | SpyfallPublicView
   | TabooPublicView
-  | CodenamesPublicView;
+  | CodenamesPublicView
+  | JustePrixPublicView;
 export type GameMeView = {
   undercover?: UndercoverMeView;
   justone?: JustOneMeView;
@@ -58,6 +61,7 @@ export type GameMeView = {
   spyfall?: SpyfallMeView;
   taboo?: TabooMeView;
   codenames?: CodenamesMeView;
+  justeprix?: JustePrixMeView;
 };
 
 /**
@@ -78,7 +82,8 @@ export type GameSelectionView =
   | { game: 'ito'; packIds: string[]; params: ItoParams }
   | { game: 'spyfall'; packIds: string[]; params: SpyfallParams }
   | { game: 'taboo'; packIds: string[]; params: TabooParams }
-  | { game: 'codenames'; packIds: string[]; params: CodenamesParams };
+  | { game: 'codenames'; packIds: string[]; params: CodenamesParams }
+  | { game: 'justeprix'; packIds: string[]; params: JustePrixParams };
 
 /** Projection publique du salon — strictement identique host / miroir / joueurs. */
 export interface RoomPublicView {

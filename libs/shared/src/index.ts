@@ -20,3 +20,5 @@ export * from './taboo/types';
 export * from './taboo/view';
 export * from './codenames/types';
 export * from './codenames/view';
+export * from './justeprix/types';
+export * from './justeprix/view';
