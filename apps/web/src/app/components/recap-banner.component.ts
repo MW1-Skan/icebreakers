@@ -3,7 +3,8 @@
  * par jeu — pas d'agrégation cross-jeux.
  */
 import { Component, input } from '@angular/core';
-import type { GameResult } from '@icebreakers/shared';
+import type { GameId, GameResult } from '@icebreakers/shared';
+import { GAME_META } from '../core/ui';
 
 @Component({
   selector: 'app-recap-banner',
@@ -48,8 +49,8 @@ import type { GameResult } from '@icebreakers/shared';
 export class RecapBannerComponent {
   readonly recap = input.required<GameResult[]>();
 
-  gameLabel(game: string): string {
-    return game === 'undercover' ? 'Undercover' : game;
+  gameLabel(game: GameId): string {
+    return GAME_META[game]?.name ?? game;
   }
 
   topScorers(result: GameResult): string {

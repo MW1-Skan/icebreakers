@@ -10,6 +10,7 @@ import { SocketService } from '../../core/socket.service';
 import { CodenamesPlayerComponent } from './codenames-player.component';
 import { ItoPlayerComponent } from './ito-player.component';
 import { JustOnePlayerComponent } from './justone-player.component';
+import { JustePrixPlayerComponent } from './justeprix-player.component';
 import { SpyfallPlayerComponent } from './spyfall-player.component';
 import { TabooPlayerComponent } from './taboo-player.component';
 import { UndercoverPlayerComponent } from './undercover-player.component';
@@ -24,6 +25,7 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
     CodenamesPlayerComponent,
     ItoPlayerComponent,
     JustOnePlayerComponent,
+    JustePrixPlayerComponent,
     SpyfallPlayerComponent,
     TabooPlayerComponent,
     UndercoverPlayerComponent,
@@ -92,6 +94,9 @@ import { RecapBannerComponent } from '../../components/recap-banner.component';
               }
               @case ('codenames') {
                 <app-codenames-player [view]="v" />
+              }
+              @case ('justeprix') {
+                <app-justeprix-player [view]="v" />
               }
             }
           }

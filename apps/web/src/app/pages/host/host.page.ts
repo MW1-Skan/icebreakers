@@ -12,6 +12,7 @@ import { ControlBarComponent } from './control-bar.component';
 import { HostLobbyComponent } from './host-lobby.component';
 import { ItoHostComponent } from './ito-host.component';
 import { JustOneHostComponent } from './justone-host.component';
+import { JustePrixHostComponent } from './justeprix-host.component';
 import { SpyfallHostComponent } from './spyfall-host.component';
 import { TabooHostComponent } from './taboo-host.component';
 import { UndercoverHostComponent } from './undercover-host.component';
@@ -26,6 +27,7 @@ import { WavelengthHostComponent } from './wavelength-host.component';
     HostLobbyComponent,
     ItoHostComponent,
     JustOneHostComponent,
+    JustePrixHostComponent,
     SpyfallHostComponent,
     TabooHostComponent,
     UndercoverHostComponent,
@@ -75,6 +77,9 @@ import { WavelengthHostComponent } from './wavelength-host.component';
             }
             @case ('codenames') {
               <app-codenames-host [view]="v" />
+            }
+            @case ('justeprix') {
+              <app-justeprix-host [view]="v" />
             }
             @default {
               <app-host-lobby [view]="v" />

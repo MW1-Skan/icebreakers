@@ -23,6 +23,7 @@ import type {
   WavelengthParams,
   WsError,
   CodenamesParams,
+  JustePrixParams,
 } from '@icebreakers/shared';
 
 const ACK_TIMEOUT_MS = 8000;
@@ -100,7 +101,8 @@ export class SocketService {
       | Partial<ItoParams>
       | Partial<SpyfallParams>
       | Partial<TabooParams>
-      | Partial<CodenamesParams>,
+      | Partial<CodenamesParams>
+      | Partial<JustePrixParams>,
   ): Promise<ActionAck> {
     return this.emitAck<ActionAck>(
       EVENTS.hostSelectGame,

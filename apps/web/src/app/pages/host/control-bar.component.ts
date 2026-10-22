@@ -36,6 +36,9 @@ import { SocketService } from '../../core/socket.service';
           @if (showChangeTheme()) {
             <button (click)="changeTheme()">🎲 Changer de thème</button>
           }
+          @if (showChangeItem()) {
+            <button (click)="changeItem()">🎲 Changer d'article</button>
+          }
           @if (showCancelBuzz()) {
             <button (click)="cancelBuzz(false)">🔕 Annuler le buzz</button>
             <button (click)="cancelBuzz(true)">🔕✓ Annuler + compter trouvé</button>
@@ -180,6 +183,14 @@ export class ControlBarComponent {
       }
       return 'Continuer';
     }
+    if (game.kind === 'justeprix') {
+      if (game.phase === 'reveal') {
+        return game.itemNumber < game.itemsCount
+          ? `Article suivant (${game.itemNumber + 1}/${game.itemsCount})`
+          : 'Voir le classement';
+      }
+      return 'Continuer';
+    }
     switch (game.phase) {
       case 'distribute':
         return 'Commencer le tour de parole';
@@ -215,6 +226,17 @@ export class ControlBarComponent {
   showChangeTheme(): boolean {
     const game = this.view().room.game;
     return game?.kind === 'ito' && game.phase === 'play' && !game.themeLocked;
+  }
+
+  showChangeItem(): boolean {
+    const game = this.view().room.game;
+    return game?.kind === 'justeprix' && game.phase === 'guess';
+  }
+
+  changeItem(): void {
+    if (confirm('Changer d’article ? Les mises déjà faites sont effacées et le chrono repart.')) {
+      void this.socket.control({ type: 'changeTheme' });
+    }
   }
 
   showCancelBuzz(): boolean {
