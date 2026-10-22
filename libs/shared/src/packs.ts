@@ -190,6 +190,56 @@ const codenamesEntries = nonEmptyEntries(codenamesEntry).superRefine((entries, c
   }
 });
 
+// Juste Prix (A.9) : un article réel, photo par URL https (hotlink assumé, rien
+// n'est stocké côté serveur), prix public TTC en euros. Prix et source restent
+// côté serveur jusqu'à la révélation de l'article.
+const JUSTEPRIX_MAX_PRICE = 1_000_000_000;
+
+function hasAtMostTwoDecimals(value: number): boolean {
+  return Math.abs(Math.round(value * 100) - value * 100) < 1e-6;
+}
+
+const justeprixEntry = z.object({
+  name: textField('name'),
+  details: textField('details').optional(),
+  price: z
+    .number('price : nombre attendu')
+    .positive('price : doit être strictement positif')
+    .max(JUSTEPRIX_MAX_PRICE, 'price : 1 000 000 000 maximum')
+    .refine(hasAtMostTwoDecimals, 'price : 2 décimales maximum'),
+  image: z
+    .url({ protocol: /^https$/, error: 'image : URL https attendue' })
+    .max(2000, 'image : 2000 caractères maximum'),
+  source: z
+    .url({ protocol: /^https?$/, error: 'source : URL http(s) attendue' })
+    .max(2000, 'source : 2000 caractères maximum')
+    .optional(),
+  seenAt: z
+    .string('seenAt : chaîne attendue')
+    .regex(/^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/, 'seenAt : AAAA-MM ou AAAA-MM-JJ attendu')
+    .optional(),
+  credit: textField('credit').optional(),
+});
+
+const justeprixEntries = nonEmptyEntries(justeprixEntry).superRefine((entries, ctx) => {
+  const dupName = findDuplicate(entries.map((e) => normalizeText(e.name)));
+  if (dupName) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [dupName.second],
+      message: `article en doublon avec entries[${dupName.first}] (« ${entries[dupName.second].name} »)`,
+    });
+  }
+  const dupImage = findDuplicate(entries.map((e) => e.image));
+  if (dupImage) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [dupImage.second, 'image'],
+      message: `même image que entries[${dupImage.first}]`,
+    });
+  }
+});
+
 // ─── Enveloppe commune (§4.2) ───────────────────────────────────────────────
 
 const envelopeFields = {
@@ -216,8 +266,9 @@ export const packSchema = z.discriminatedUnion(
     z.object({ ...envelopeFields, game: z.literal('ito'), entries: itoEntries }),
     z.object({ ...envelopeFields, game: z.literal('taboo'), entries: tabooEntries }),
     z.object({ ...envelopeFields, game: z.literal('codenames'), entries: codenamesEntries }),
+    z.object({ ...envelopeFields, game: z.literal('justeprix'), entries: justeprixEntries }),
   ],
-  'game : jeu inconnu (attendu : undercover, wavelength, justone, spyfall, ito, taboo ou codenames)',
+  'game : jeu inconnu (attendu : undercover, wavelength, justone, spyfall, ito, taboo, codenames ou justeprix)',
 );
 
 export type Pack = z.infer<typeof packSchema>;
@@ -235,6 +286,8 @@ export type TabooPack = Extract<Pack, { game: 'taboo' }>;
 export type TabooPackEntry = TabooPack['entries'][number];
 export type CodenamesPack = Extract<Pack, { game: 'codenames' }>;
 export type CodenamesPackEntry = CodenamesPack['entries'][number];
+export type JustePrixPack = Extract<Pack, { game: 'justeprix' }>;
+export type JustePrixPackEntry = JustePrixPack['entries'][number];
 
 /** Identifiant d'un élément de contenu : `packId#index` (§4.2, anti-répétition). */
 export function entryElementId(packId: string, index: number): string {

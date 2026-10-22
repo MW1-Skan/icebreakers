@@ -135,9 +135,9 @@ describe('PacksService — administration', () => {
     if (!builtin.ok) expect(builtin.error).toContain('désactive');
   });
 
-  it('les templates des sept jeux sont des packs valides', () => {
+  it('les templates des huit jeux sont des packs valides', () => {
     const service = makeService();
-    const games: GameId[] = ['undercover', 'wavelength', 'justone', 'spyfall', 'ito', 'taboo', 'codenames'];
+    const games: GameId[] = ['undercover', 'wavelength', 'justone', 'spyfall', 'ito', 'taboo', 'codenames', 'justeprix'];
     for (const game of games) {
       const template = service.templateFor(game);
       const result = validatePack(template);

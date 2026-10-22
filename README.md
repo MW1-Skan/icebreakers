@@ -32,6 +32,12 @@ Jeux disponibles (joueurs actifs, animateur exclu) :
   mots ; un maître-espion par camp guide ses devineurs aux indices « un mot +
   un nombre » (validés par le serveur). Touchez vos mots, évitez ceux de
   l'adversaire… et l'assassin ☠️. Grille 16/20/25, manches à rôles tournants.
+- **Juste Prix** 🏷️ (3–10 j) — un vrai article s'affiche (photo, nom,
+  détails) : chacun mise son prix en secret, révélation simultanée sur une
+  frise, les trois plus proches marquent 3/2/1 (option « sans dépasser »).
+  2 à 15 articles sans répétition, « Changer d'article » côté animateur.
+  Photos par URL (rien n'est stocké) ; pas encore de pack intégré : crée un
+  pack Juste Prix dans `/admin`. Fiche : [docs/fiches/juste-prix.md](docs/fiches/juste-prix.md).
 
 ## Démarrage
 
@@ -152,6 +158,11 @@ requis. Le tirage puise **uniformément par entrée dans l'union des packs
 cochés** (un petit pack n'est pas surreprésenté), avec l'anti-répétition
 intra-salon habituelle ; Spyfall fusionne les thèmes de même nom entre packs
 cochés.
+
+Juste Prix : la photo d'un article est une **URL https** chargée directement
+par les écrans (hotlink assumé, `referrerpolicy="no-referrer"`) — aucun
+fichier n'est stocké sur le serveur. Dans l'éditeur `/admin`, un aperçu signale
+les images qui ne se chargent pas.
 
 ### Page d'administration (`/admin`)
 

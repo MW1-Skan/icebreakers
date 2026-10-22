@@ -140,6 +140,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         ) {
           this.games.dispatch(room, { type: 'PLAYER_GONE' });
         }
+        // Juste Prix : le partant ne bloque plus la clôture anticipée des estimations.
+        if (room.status === 'inGame' && room.game?.kind === 'justeprix' && room.game.phase === 'guess') {
+          this.games.dispatch(room, { type: 'PLAYER_GONE' });
+        }
         // Taboo : orateur ou devineur du binôme actif déconnecté → chrono en pause (fiche 5.6).
         if (
           room.status === 'inGame' &&
@@ -304,6 +308,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       case 'codenames':
         ctx.room.selection = { game: 'codenames', packIds, paramOverrides: parsed.data.params };
         break;
+      case 'justeprix':
+        ctx.room.selection = { game: 'justeprix', packIds, paramOverrides: parsed.data.params };
+        break;
     }
     this.rooms.touch(ctx.room);
     this.broadcastRoom(ctx.room);
@@ -413,6 +420,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
         return this.games.dispatch(room, { type: 'HOST_TRANSFER_SPYMASTER', playerId: control.playerId });
       case 'changeTheme':
+        // Ito : changer de thème ; Juste Prix : changer d'article.
+        if (room.game?.kind === 'justeprix') return this.games.justePrixChangeItem(room);
         return this.games.itoChangeTheme(room);
       case 'cancelBuzz':
         if (room.game?.kind !== 'taboo') {
@@ -491,6 +500,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const action = this.mapCodenamesAction(parsed.data, playerId);
       if (!action) return this.wrongGame();
       return this.games.dispatch(room, action);
+    }
+    if (room.game?.kind === 'justeprix') {
+      if (parsed.data.type !== 'estimate') return this.wrongGame();
+      return this.games.dispatch(room, { type: 'ESTIMATE', playerId, amount: parsed.data.amount });
     }
     return { ok: false, error: { code: 'ACTION_NOT_ALLOWED', message: 'Aucune partie en cours.' } };
   }
@@ -628,6 +641,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       selectedPackIds,
       codenamesDistinctWords:
         game === 'codenames' ? this.packs.codenamesDistinctWordCount(selectedPackIds) : undefined,
+      justePrixDistinctItems:
+        game === 'justeprix' ? this.packs.justePrixDistinctCount(selectedPackIds) : undefined,
       config: {
         siteName: this.appConfig.config.siteName,
         internalModeLabel: this.appConfig.config.internalModeLabel,

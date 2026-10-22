@@ -241,4 +241,59 @@ describe('PacksService — unions par jeu', () => {
       error: 'NO_CONTENT',
     });
   });
+
+  describe('Juste Prix', () => {
+    const jpPack = (id: string, names: string[]) => ({
+      formatVersion: 1,
+      id,
+      game: 'justeprix',
+      name: id,
+      mode: 'normal',
+      lang: 'fr',
+      entries: names.map((name, i) => ({ name, price: 10 + i, image: `https://cdn.exemple.fr/${id}-${i}.jpg` })),
+    });
+
+    it('articles distincts comptés sur l’union ; NO_CONTENT en dessous du nombre demandé', () => {
+      writePack(path.join(tmpDir, 'builtin'), 'a.json', jpPack('jp-a', ['Gamelle', 'Plaid', 'Stylo']));
+      writePack(path.join(tmpDir, 'data'), 'b.json', jpPack('jp-b', ['gamelle', 'Ruche']));
+      const service = makeService();
+      expect(service.justePrixDistinctCount(['jp-a', 'jp-b'])).toBe(4); // « Gamelle » une seule fois
+      const drawn = service.drawJustePrixItems(4, ['jp-a', 'jp-b'], new Set(), mulberry32(3));
+      expect('error' in drawn).toBe(false);
+      if (!('error' in drawn)) {
+        const names = drawn.items.map((i) => i.name.toLowerCase());
+        expect(new Set(names).size).toBe(4);
+        expect(drawn.items.every((i) => i.price > 0 && i.image.startsWith('https://'))).toBe(true);
+      }
+      expect(service.drawJustePrixItems(5, ['jp-a', 'jp-b'], new Set(), mulberry32(3))).toEqual({
+        error: 'NO_CONTENT',
+      });
+    });
+
+    it('privilégie les articles jamais joués, puis recycle en le signalant', () => {
+      writePack(path.join(tmpDir, 'builtin'), 'a.json', jpPack('jp-a', ['A', 'B', 'C', 'D']));
+      const service = makeService();
+      const used = new Set<string>();
+      const first = service.drawJustePrixItems(3, ['jp-a'], used, mulberry32(1));
+      const second = service.drawJustePrixItems(3, ['jp-a'], used, mulberry32(2));
+      if ('error' in first || 'error' in second) throw new Error('tirage inattendu');
+      expect(first.recycled).toBe(false);
+      // Le seul article jamais joué fait forcément partie du second tirage.
+      const unplayed = ['A', 'B', 'C', 'D'].find((n) => !first.items.some((i) => i.name === n))!;
+      expect(second.items.map((i) => i.name)).toContain(unplayed);
+      expect(second.recycled).toBe(true);
+    });
+
+    it('« Changer d’article » : jamais un article déjà dans la partie', () => {
+      writePack(path.join(tmpDir, 'builtin'), 'a.json', jpPack('jp-a', ['A', 'B', 'C']));
+      const service = makeService();
+      for (let seed = 1; seed <= 20; seed++) {
+        const drawn = service.drawJustePrixItems(1, ['jp-a'], new Set(), mulberry32(seed), new Set(['a', 'b']));
+        expect(!('error' in drawn) && drawn.items[0].name).toBe('C');
+      }
+      expect(
+        service.drawJustePrixItems(1, ['jp-a'], new Set(), mulberry32(1), new Set(['a', 'b', 'c'])),
+      ).toEqual({ error: 'NO_CONTENT' });
+    });
+  });
 });

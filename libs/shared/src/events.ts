@@ -104,6 +104,12 @@ export const codenamesParamsSchema = z.object({
   spymasters: z.tuple([z.string(), z.string()]).optional(),
 });
 
+export const justeprixParamsSchema = z.object({
+  manchesCount: z.number().int().min(1).max(15).optional(),
+  guessSeconds: z.number().int().min(15).max(120).optional(),
+  noOverbid: z.boolean().optional(),
+});
+
 /**
  * Packs cochés pour la partie. Absent ou vide → défaut : TOUS les packs
  * actifs du jeu (résolu au tirage). Les ids inconnus/inactifs/d'un autre jeu
@@ -146,6 +152,11 @@ export const hostSelectGameSchema = z.discriminatedUnion('game', [
     game: z.literal('codenames'),
     packIds: packIdsSchema,
     params: codenamesParamsSchema.default({}),
+  }),
+  z.object({
+    game: z.literal('justeprix'),
+    packIds: packIdsSchema,
+    params: justeprixParamsSchema.default({}),
   }),
 ]);
 
@@ -206,6 +217,15 @@ export const gameActionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('revealCard'), cardIndex: z.number().int().min(0).max(24) }),
   z.object({ type: z.literal('stopGuessing') }),
+  // Juste Prix — mise en euros (arrondie au centime par le moteur)
+  z.object({
+    type: z.literal('estimate'),
+    amount: z
+      .number('Ton estimation doit être un nombre.')
+      .finite()
+      .min(0, 'Pas de prix négatif !')
+      .max(1_000_000_000, 'Un peu cher, non ? (1 milliard d’euros maximum)'),
+  }),
 ]);
 
 export type RoomCreatePayload = z.infer<typeof roomCreateSchema>;

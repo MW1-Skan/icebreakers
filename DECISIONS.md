@@ -484,6 +484,53 @@ continue »). Références : §n = section du PRD, « fiche » = fiche 5.1 Under
   éditer/dupliquer — builtin compris ; `lang` et `author` sont repris tels
   quels du pack source.
 
+## Le Juste Prix (8e jeu — fiche validée en session, hors PRD)
+
+- **Spec de référence** : `docs/fiches/juste-prix.md`, proposée et validée en
+  session ; la shortlist d'articles candidats vit à côté
+  (`juste-prix-candidats.md`, signalée « spoiler » : elle contient les prix).
+- **Images par URL https, rien de stocké** (choix utilisateur) : pas d'upload,
+  pas de fichiers à gérer, aucune photo de marchand copiée dans Git.
+  **Exception assumée** au principe « aucune requête vers un tiers » : les
+  écrans chargent la photo chez le marchand, avec `referrerpolicy="no-referrer"`
+  (le CDN ne voit pas d'où vient la requête). Liens morts : repli « image
+  indisponible », « Changer d'article » en partie, et aperçu dans l'éditeur
+  `/admin` qui compte les images qui ne se chargent pas — vérification faite
+  par le NAVIGATEUR de l'admin, jamais par le serveur (pas de SSRF). Schéma :
+  `https` seulement (contenu mixte, `javascript:`, `data:` refusés).
+- **Barème au classement** (choix utilisateur, au lieu des paliers de
+  précision proposés) : écart calculé en CENTIMES pour que les ex æquo soient
+  exacts (199,99 € et 200,01 € pour 200 €), classement « 1, 1, 3 », 3/2/1 pts.
+  🎯 « le juste prix » (≤ 1 %) : célébration seule, sans point. « Sans
+  dépasser » : les mises au-dessus du prix sortent du classement (0 pt) ;
+  tout le monde dépasse → personne ne marque.
+- **Articles tirés tous au lancement** (pureté du réducteur, comme le deck
+  Taboo) : N articles distincts par nom normalisé, dédoublonnés entre packs,
+  jamais joués d'abord puis recyclage ♻️ ; blocker au lobby si l'union des
+  packs cochés compte moins de N articles.
+- **« Changer d'article »** réutilise le contrôle `changeTheme` (précédent
+  Ito) : pendant l'estimation seulement, avec confirmation (les mises sont
+  effacées), chrono relancé ; le remplaçant n'est aucun article de la partie.
+- **Clôture anticipée** quand tous les joueurs CONNECTÉS ont misé, et
+  réévaluée quand un joueur se déconnecte (`PLAYER_GONE`) : sans rôle central,
+  un partant ne doit pas faire attendre la fin du chrono.
+- **Pas de « retrait d'un joueur »** (la fiche §6 le citait parmi les
+  génériques, mais il n'existe que pour Undercover et Ito) : un déconnecté ne
+  bloque pas, et le chrono borne l'attente d'un joueur connecté mais AFK.
+- **Saisie** tolérante côté client (« 1 299,90 € », « 1299.9 »), 2 décimales
+  max ; le serveur arrondit au centime, accepte 0 € et plafonne à 1 milliard.
+- **Pas de pack intégré pour l'instant** : les prix de la shortlist ne sont
+  pas vérifiés sur les pages produits et aucune URL d'image n'est choisie
+  (accès aux sites marchands bloqué depuis l'environnement de développement).
+  Le e2e uploade son propre pack via l'API admin ; ses images pointent vers un
+  domaine qui ne résout pas, ce qui teste au passage le repli.
+- **Lobby en 4×2** (8 jeux) : 4 colonnes, 3 sous 1000 px, 2 sous 640 px.
+  Couleur signature `#ffc145`, distincte de l'accent `#ffd166`.
+- **Récap de soirée** : libellé du jeu tiré de `GAME_META` (« Juste Prix »,
+  « Wavelength »…) au lieu de l'id brut.
+- **Budget de bundle** : l'avertissement Angular existait déjà sur `main`
+  (941 ko pour un seuil de 900 ko) ; ce jeu ajoute environ 32 ko.
+
 ## Retours du premier déploiement réel (intégrés à DEPLOY.md)
 
 - **Cloudflare One, UI d'août 2026** : plus de section « Settings →

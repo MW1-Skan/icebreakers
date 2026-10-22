@@ -8,6 +8,7 @@
 import { Component, OnInit, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { GameId, Pack, PackMode } from '@icebreakers/shared';
+import { parseEuros } from '../core/ui';
 
 export type PackEditorKind = 'edit' | 'duplicate' | 'create';
 
@@ -45,7 +46,19 @@ const ENTRY_FIELDS: Record<GameId, EntryField[]> = {
     { key: 'forbidden1', label: 'Interdit 2' },
     { key: 'forbidden2', label: 'Interdit 3' },
   ],
+  justeprix: [
+    { key: 'name', label: 'Nom de l’article' },
+    { key: 'details', label: 'Détails (optionnel)' },
+    { key: 'price', label: 'Prix TTC (€)' },
+    { key: 'image', label: 'URL de l’image (https)' },
+    { key: 'source', label: 'Page produit (optionnel)' },
+    { key: 'seenAt', label: 'Relevé le (AAAA-MM)' },
+    { key: 'credit', label: 'Crédit photo (optionnel)' },
+  ],
 };
+
+/** Juste Prix : champs omis du JSON quand ils sont laissés vides. */
+const JUSTEPRIX_OPTIONAL = ['details', 'source', 'seenAt', 'credit'];
 
 function toDraft(game: GameId, entry: Record<string, unknown>): DraftEntry {
   const difficulty = typeof entry['difficulty'] === 'number' ? entry['difficulty'] : undefined;
@@ -78,6 +91,19 @@ function fromDraft(game: GameId, draft: DraftEntry): Record<string, unknown> {
       word: draft.fields['word'],
       forbidden: [draft.fields['forbidden0'], draft.fields['forbidden1'], draft.fields['forbidden2']],
     });
+  }
+  if (game === 'justeprix') {
+    const entry: Record<string, unknown> = {};
+    for (const field of ENTRY_FIELDS.justeprix) {
+      const value = (draft.fields[field.key] ?? '').trim();
+      if (field.key === 'price') {
+        // Saisie tolérante (« 1 299,90 ») ; sinon on laisse la validation serveur répondre.
+        entry['price'] = parseEuros(value) ?? value;
+      } else if (value || !JUSTEPRIX_OPTIONAL.includes(field.key)) {
+        entry[field.key] = value;
+      }
+    }
+    return entry;
   }
   if (game === 'spyfall') {
     return {
@@ -129,6 +155,18 @@ function fromDraft(game: GameId, draft: DraftEntry): Record<string, unknown> {
       <h3>
         Entrées <span class="tag">{{ entries().length }}</span>
       </h3>
+      @if (game === 'justeprix') {
+        <p class="muted hint-line">
+          Geste rapide : sur le site marchand, clic droit sur la photo du produit → « Copier l'adresse de
+          l'image » → coller. Les photos sont chargées depuis le site d'origine (rien n'est stocké ici).
+        </p>
+        @if (brokenCount() > 0) {
+          <p class="error" role="status">
+            ⚠️ {{ brokenCount() }} image{{ brokenCount() > 1 ? 's' : '' }} ne se charge{{ brokenCount() > 1 ? 'nt' : '' }}
+            pas — vérifie les URLs (aperçu barré).
+          </p>
+        }
+      }
       <div class="entries">
         @for (entry of entries(); track $index; let entryIndex = $index) {
           <div class="entry-row">
@@ -137,6 +175,7 @@ function fromDraft(game: GameId, draft: DraftEntry): Record<string, unknown> {
               @if (field.multiline) {
                 <textarea
                   rows="4"
+                  [title]="field.label"
                   [attr.aria-label]="field.label + ' ' + (entryIndex + 1)"
                   [placeholder]="field.label"
                   [ngModel]="entry.fields[field.key]"
@@ -145,6 +184,7 @@ function fromDraft(game: GameId, draft: DraftEntry): Record<string, unknown> {
                 ></textarea>
               } @else {
                 <input
+                  [title]="field.label"
                   [attr.aria-label]="field.label + ' ' + (entryIndex + 1)"
                   [placeholder]="field.label"
                   [ngModel]="entry.fields[field.key]"
@@ -152,6 +192,21 @@ function fromDraft(game: GameId, draft: DraftEntry): Record<string, unknown> {
                   [name]="'entry-' + entryIndex + '-' + field.key"
                 />
               }
+            }
+            @if (game === 'justeprix') {
+              <span class="thumb-wrap">
+                @if (entry.fields['image']) {
+                  <img
+                    class="thumb"
+                    [class.broken]="brokenImages().has(entry.fields['image'])"
+                    [src]="entry.fields['image']"
+                    alt=""
+                    referrerpolicy="no-referrer"
+                    (error)="markImage(entry.fields['image'], false)"
+                    (load)="markImage(entry.fields['image'], true)"
+                  />
+                }
+              </span>
             }
             <button
               class="danger remove"
@@ -240,6 +295,27 @@ function fromDraft(game: GameId, draft: DraftEntry): Record<string, unknown> {
       .entry-row .remove {
         padding: 0.3em 0.6em;
       }
+      .hint-line {
+        margin: -0.3rem 0 0.7rem;
+        font-size: 0.9rem;
+      }
+      .thumb-wrap {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        border-radius: 8px;
+      }
+      .thumb {
+        max-width: 52px;
+        max-height: 52px;
+        object-fit: contain;
+      }
+      .thumb.broken {
+        opacity: 0.3;
+        outline: 2px solid var(--danger);
+      }
       .error {
         color: var(--danger);
         margin: 0.5rem 0 0;
@@ -287,6 +363,20 @@ export class PackEditorComponent implements OnInit {
   private author?: string;
   readonly entries = signal<DraftEntry[]>([]);
   readonly localError = signal<string | null>(null);
+  /** Juste Prix : URLs d'images qui échouent au chargement (vérification dans le navigateur). */
+  readonly brokenImages = signal<ReadonlySet<string>>(new Set());
+  readonly brokenCount = computed(
+    () => this.entries().filter((e) => this.brokenImages().has(e.fields['image'] ?? '')).length,
+  );
+
+  markImage(url: string, ok: boolean): void {
+    this.brokenImages.update((set) => {
+      const next = new Set(set);
+      if (ok) next.delete(url);
+      else next.add(url);
+      return next;
+    });
+  }
 
   ngOnInit(): void {
     const pack = this.initial();

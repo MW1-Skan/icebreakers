@@ -12,6 +12,7 @@ import type {
   PlayerPublicView,
   ItoParams,
   JustOneParams,
+  JustePrixParams,
   PlayerId,
   SpyfallParams,
   TabooParams,
@@ -54,10 +55,19 @@ const SF_DEFAULTS: SpyfallParams = {
 };
 const TB_DEFAULTS: TabooParams = { passageSeconds: 60, passesPerTeam: 2, hardPass: false };
 const CN_DEFAULTS: CodenamesParams = { gridSize: 25, manchesCount: 1, clueSeconds: 90, guessSeconds: 120 };
+const JP_DEFAULTS: JustePrixParams = { manchesCount: 6, guessSeconds: 45, noOverbid: false };
 
 const TEAM_LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
-type SelectableGame = 'undercover' | 'justone' | 'wavelength' | 'ito' | 'spyfall' | 'taboo' | 'codenames';
+type SelectableGame =
+  | 'undercover'
+  | 'justone'
+  | 'wavelength'
+  | 'ito'
+  | 'spyfall'
+  | 'taboo'
+  | 'codenames'
+  | 'justeprix';
 
 interface GameCard {
   id: SelectableGame;
@@ -147,6 +157,17 @@ const GAME_CARDS: GameCard[] = [
     type: 'Équipes (Rouge vs Bleu)',
     description:
       'Deux équipes s’affrontent sur une grille de mots. Les maîtres-espions connaissent la couleur secrète de chaque mot et guident leurs devineurs à coups d’indices « un mot + un nombre ». Touchez vos mots, évitez ceux de l’adversaire… et surtout l’assassin ☠️.',
+  },
+  {
+    id: 'justeprix',
+    emoji: '🏷️',
+    name: 'Juste Prix',
+    color: 'var(--game-justeprix)',
+    players: '3–10 joueurs',
+    duration: '~8–10 min',
+    type: 'Estimation',
+    description:
+      'Un article bien réel s’affiche à l’écran : combien coûte-t-il ? Chacun mise son estimation en secret, puis le juste prix tombe. Les trois estimations les plus proches marquent 3, 2 et 1 points !',
   },
 ];
 
@@ -381,6 +402,23 @@ const GAME_CARDS: GameCard[] = [
 
                 <label for="tbhard" title="La passe coûte −1">Mode dur</label>
                 <input id="tbhard" name="tbhard" type="checkbox" [ngModel]="tbParams().hardPass" (ngModelChange)="patchTb({ hardPass: $event })" />
+              } @else if (g.id === 'justeprix') {
+                <label for="jpmanches">Articles</label>
+                <select id="jpmanches" name="jpmanches" [ngModel]="jpParams().manchesCount" (ngModelChange)="patchJp({ manchesCount: +$event })">
+                  @for (n of [2, 3, 4, 5, 6, 8, 10, 12, 15]; track n) {
+                    <option [value]="n">{{ n }}</option>
+                  }
+                </select>
+
+                <label for="jpguess">Estimation</label>
+                <select id="jpguess" name="jpguess" [ngModel]="jpParams().guessSeconds" (ngModelChange)="patchJp({ guessSeconds: +$event })">
+                  @for (s of [30, 45, 60, 90]; track s) {
+                    <option [value]="s">{{ s }} s</option>
+                  }
+                </select>
+
+                <label for="jpover" title="Règle TV : une mise au-dessus du prix ne rapporte rien">Sans dépasser</label>
+                <input id="jpover" name="jpover" type="checkbox" [ngModel]="jpParams().noOverbid" (ngModelChange)="patchJp({ noOverbid: $event })" />
               } @else if (g.id === 'codenames') {
                 <label for="cnsize">Grille</label>
                 <select id="cnsize" name="cnsize" [ngModel]="cnParams().gridSize" (ngModelChange)="setCnGridSize($event)">
@@ -550,8 +588,13 @@ const GAME_CARDS: GameCard[] = [
       /* ── Cartes de jeux ──────────────────────────────────────────────── */
       .game-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
+      }
+      @media (max-width: 1000px) {
+        .game-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
       }
       @media (max-width: 640px) {
         .game-grid {
@@ -849,6 +892,11 @@ export class HostLobbyComponent {
     return selection?.game === 'codenames' ? selection.params : CN_DEFAULTS;
   });
 
+  readonly jpParams = computed<JustePrixParams>(() => {
+    const selection = this.view().room.selection;
+    return selection?.game === 'justeprix' ? selection.params : JP_DEFAULTS;
+  });
+
   readonly games = GAME_CARDS;
   readonly teamLetters = TEAM_LETTERS;
   /** Éditeur de binômes Taboo : lettre d'équipe par joueur (vide = aléatoire). */
@@ -935,7 +983,9 @@ export class HostLobbyComponent {
     | Partial<WavelengthParams>
     | Partial<ItoParams>
     | Partial<SpyfallParams>
-    | Partial<TabooParams> {
+    | Partial<TabooParams>
+    | Partial<CodenamesParams>
+    | Partial<JustePrixParams> {
     switch (game) {
       case 'undercover':
         return this.ucOverrides();
@@ -951,9 +1001,20 @@ export class HostLobbyComponent {
         return this.tbOverrides();
       case 'codenames':
         return this.cnOverrides();
+      case 'justeprix':
+        return this.jpOverrides();
       default:
         return {};
     }
+  }
+
+  patchJp(change: Partial<JustePrixParams>): void {
+    void this.socket.selectGame('justeprix', this.sendPackIds(), { ...this.jpOverrides(), ...change });
+  }
+
+  private jpOverrides(): Partial<JustePrixParams> {
+    const p = this.jpParams();
+    return { manchesCount: p.manchesCount, guessSeconds: p.guessSeconds, noOverbid: p.noOverbid };
   }
 
   private wlOverrides(): Partial<WavelengthParams> {

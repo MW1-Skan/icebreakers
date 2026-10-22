@@ -20,8 +20,9 @@ const GAME_EMOJI: Record<GameId, string> = {
   spyfall: '🔎',
   taboo: '⏱️',
   codenames: '🗝️',
+  justeprix: '🏷️',
 };
-const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall', 'taboo', 'codenames'];
+const GAMES: GameId[] = ['undercover', 'justone', 'wavelength', 'ito', 'spyfall', 'taboo', 'codenames', 'justeprix'];
 
 @Component({
   selector: 'app-admin',

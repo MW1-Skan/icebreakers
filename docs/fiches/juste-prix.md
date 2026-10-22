@@ -1,8 +1,8 @@
 # Fiche — Le Juste Prix 🏷️ (8e jeu)
 
-> **Statut : brouillon v2 — décisions du 22/10 intégrées** (images par URL,
-> barème au classement, option « sans dépasser », finale reportée, pack
-> intégré d'une trentaine d'articles). Le point encore ouvert est en §15. Une fois validée, cette
+> **Statut : validée et implémentée (22/10).** Images par URL, barème au
+> classement, option « sans dépasser », finale reportée. Reste ouvert : le
+> pack intégré (§15). Les écarts d'implémentation sont dans `DECISIONS.md`. Une fois validée, cette
 > fiche est la spec de référence du jeu (comme la fiche Codenames, hors PRD) ;
 > les écarts d'implémentation iront dans `DECISIONS.md`.
 
@@ -24,7 +24,7 @@ sur un prix, et la révélation déclenche les réactions (« 900 € pour ÇA ?
 | Joueurs | 3–10 actifs (animateur exclu, comme les autres jeux) |
 | Durée | ~8–10 min pour 6 articles (≈ 45 s d'estimation + 30–45 s de révélation par article) |
 | Type | Estimation, score individuel |
-| Identité | 🏷️, couleur signature or (`--game-justeprix`, ex. `#ffd166`), id technique `justeprix` |
+| Identité | 🏷️, couleur signature or (`--game-justeprix: #ffc145`), id technique `justeprix` |
 
 Description de la carte du lobby :
 
@@ -121,7 +121,7 @@ que N dans les packs cochés.
 ## 6. Contrôles animateur
 
 - **Génériques inchangés** : pause / reprise / +30 s du chrono, abandon
-  (retour lobby), retrait d'un joueur, kick au lobby.
+  (retour lobby), kick au lobby.
 - **« 🎲 Changer d'article »** pendant l'estimation — réutilise le contrôle
   `changeTheme` (précédent Ito) : nouvel article tiré (jamais joué dans la
   partie), mises effacées, chrono relancé. Cas d'usage : « je l'ai chez
@@ -136,8 +136,9 @@ que N dans les packs cochés.
   anticipée ; s'il revient avant la clôture il peut miser, sinon 0 pt sur
   l'article. Pas de gel : aucun rôle central dans ce jeu.
 - **Retardataire** : spectateur, joue la prochaine (règle du salon).
-- **Retrait d'un joueur** : il n'est plus attendu pour la suite ; ses points
-  acquis restent au classement.
+- **Joueur connecté mais AFK** : pas de retrait (le chrono borne l'attente) ;
+  un joueur qui se DÉCONNECTE n'est plus attendu, la clôture anticipée est
+  réévaluée aussitôt.
 - **< 3 joueurs connectés** : bandeau, pas de gel (comme Wavelength).
 - **Abandon** : retour au lobby ; si au moins un article a été révélé, la
   partie entre au récap (« partie écourtée, 3/6 articles »).
@@ -234,8 +235,9 @@ Objectif : des articles dont le prix trompe l'intuition. Règles de sélection :
    contenu sexuel ou politique, ni animaux vivants. La quantité ou le poids
    figure dans `details` quand c'est indispensable pour estimer.
 
-Fichier : `packs/builtin/justeprix-normal-01.json`, créé à l'implémentation.
-La shortlist en cours vit dans `docs/fiches/juste-prix-candidats.md`.
+Fichier : `packs/builtin/justeprix-normal-01.json`, créé une fois les prix
+vérifiés et les images choisies. La shortlist en cours vit dans
+`docs/fiches/juste-prix-candidats.md` (⚠️ elle contient les prix).
 
 ## 10. Administration (`/admin`)
 
